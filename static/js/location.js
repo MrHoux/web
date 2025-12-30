@@ -216,6 +216,7 @@ let _modalHooked = false;
 let _localSearch = null;
 let _domClickHooked = false;
 let _returnModalSelector = null;
+let _mapA11yObserver = null;
 
 // Pending selection state:
 // - User may click/search many points, but we only commit to navbar/form on Confirm.
@@ -391,6 +392,44 @@ function ensureMarker(pt) {
     _map.addOverlay(_marker);
 }
 
+function normalizeMapA11y(root) {
+    if (!root) return;
+    const imgs = root.querySelectorAll('img');
+    imgs.forEach((img) => {
+        const link = img.closest('a');
+        const linkLabel = link?.getAttribute('aria-label') || link?.getAttribute('title') || '';
+        if (!img.hasAttribute('alt')) {
+            img.setAttribute('alt', link ? (linkLabel || 'Baidu map') : '');
+        }
+        if (!link) img.setAttribute('role', 'presentation');
+    });
+
+    const links = root.querySelectorAll('a');
+    links.forEach((link) => {
+        const hasText = (link.textContent || '').trim().length > 0;
+        const hasLabel = link.getAttribute('aria-label') || link.getAttribute('title');
+        if (!hasText && !hasLabel) {
+            link.setAttribute('aria-label', 'Baidu map');
+        }
+    });
+}
+
+function setupMapA11y() {
+    const mapEl = document.getElementById('baidu-map');
+    if (!mapEl) return;
+    normalizeMapA11y(mapEl);
+    if (_mapA11yObserver) return;
+    _mapA11yObserver = new MutationObserver((mutations) => {
+        mutations.forEach((m) => {
+            m.addedNodes.forEach((node) => {
+                if (!node || node.nodeType !== 1) return;
+                normalizeMapA11y(node);
+            });
+        });
+    });
+    _mapA11yObserver.observe(mapEl, { childList: true, subtree: true });
+}
+
 async function initLocationModal() {
     const modalEl = document.getElementById('locationModal');
     const mapEl = document.getElementById('baidu-map');
@@ -406,6 +445,7 @@ async function initLocationModal() {
         _map.enableScrollWheelZoom(true);
         _map.addControl(new BMap.NavigationControl());
         _map.addControl(new BMap.ScaleControl());
+        setupMapA11y();
 
         _map.addEventListener('click', async (e) => {
             const pt = e.point;
@@ -509,6 +549,7 @@ async function initLocationModal() {
         });
         modalEl.addEventListener('shown.bs.modal', () => {
             ensureMap();
+            setupMapA11y();
             try {
                 // Ensure proper render after being shown (bootstrap modal was hidden before)
                 _map && _map.checkResize && _map.checkResize();
@@ -621,4 +662,3 @@ export async function initLocationUI() {
     window.ShopWave = window.ShopWave || {};
     window.ShopWave.useMyLocationAndFill = useMyLocationAndFill;
 }
-

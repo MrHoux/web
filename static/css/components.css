@@ -627,6 +627,29 @@
     color: #7F1D1D;
     border: 1px solid #FCA5A5;
 }
+.status-active {
+    background-color: #166534;
+    color: #ffffff;
+    border: 1px solid #14532D;
+}
+.status-disabled {
+    background-color: #111827;
+    color: #ffffff;
+    border: 1px solid #0F172A;
+}
+.btn-outline-warning.btn-outline-warning-strong {
+    color: #7C2D12;
+    border-color: #7C2D12;
+}
+.btn-outline-warning.btn-outline-warning-strong:hover,
+.btn-outline-warning.btn-outline-warning-strong:focus {
+    color: #ffffff;
+    background-color: #7C2D12;
+    border-color: #7C2D12;
+}
+.btn-outline-warning.btn-outline-warning-strong:focus-visible {
+    box-shadow: 0 0 0 0.2rem rgba(124, 45, 18, 0.35);
+}
 
 /* Force true circles (fix "oval" issue when width/height differ) */
 /* Pagination: make page links perfectly round */

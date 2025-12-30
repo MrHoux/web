@@ -57,13 +57,14 @@
                 <td class="ps-4 fw-bold">${c.name}</td>
                 <td class="font-monospace text-secondary">${c.slug}</td>
                 <td>
-                    <span class="badge ${c.is_active ? 'bg-success-subtle text-success border border-success-subtle' : 'bg-secondary'}">
-                        ${c.is_active ? 'Active' : 'Inactive'}
+                    <span class="badge badge-status ${c.is_active ? 'status-active' : 'status-disabled'}">
+                        <i class="bi ${c.is_active ? 'bi-check-circle-fill' : 'bi-slash-circle-fill'} me-1" aria-hidden="true"></i>
+                        <span>${c.is_active ? 'Active' : 'Disabled'}</span>
                     </span>
                 </td>
                 <td class="pe-4 text-end">
                     <button class="btn btn-sm btn-outline-primary" data-action="edit" data-id="${c.id}" data-name="${escapeAttr(c.name)}" data-slug="${escapeAttr(c.slug)}">Edit</button>
-                    <button class="btn btn-sm ${c.is_active ? 'btn-outline-warning' : 'btn-outline-success'} ms-2" data-action="toggle" data-id="${c.id}" data-active="${c.is_active}">
+                    <button class="btn btn-sm ${c.is_active ? 'btn-outline-warning btn-outline-warning-strong' : 'btn-outline-success'} ms-2" data-action="toggle" data-id="${c.id}" data-active="${c.is_active}">
                         ${c.is_active ? 'Disable' : 'Enable'}
                     </button>
                     <button class="btn btn-sm btn-outline-danger ms-2" data-action="delete" data-id="${c.id}" data-name="${escapeAttr(c.name)}">Delete</button>

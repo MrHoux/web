@@ -145,7 +145,7 @@
                 <td class="pe-4 text-end" data-label="Actions">
                     <button class="btn btn-sm btn-outline-secondary me-1" onclick="editProduct(${p.id})" aria-label="Edit product"><i class="bi bi-pencil"></i></button>
                     ${isAdmin ? `
-                        <button class="btn btn-sm ${p.status === 'SUSPENDED' ? 'btn-outline-success' : 'btn-outline-warning'} me-1" onclick="toggleProductStatus(${p.id}, '${p.status}')">
+                        <button class="btn btn-sm ${p.status === 'SUSPENDED' ? 'btn-outline-success' : 'btn-outline-warning btn-outline-warning-strong'} me-1" onclick="toggleProductStatus(${p.id}, '${p.status}')">
                             ${p.status === 'SUSPENDED' ? 'Activate' : 'Suspend'}
                         </button>
                     ` : ''}

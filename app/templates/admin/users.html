@@ -75,14 +75,15 @@
                     </span>
                 </td>
                 <td>
-                    <span class="badge ${u.is_active ? 'bg-success-subtle text-success border border-success-subtle' : 'bg-secondary'}">
-                        ${u.is_active ? 'Active' : 'Inactive'}
+                    <span class="badge badge-status ${u.is_active ? 'status-active' : 'status-disabled'}">
+                        <i class="bi ${u.is_active ? 'bi-check-circle-fill' : 'bi-slash-circle-fill'} me-1" aria-hidden="true"></i>
+                        <span>${u.is_active ? 'Active' : 'Disabled'}</span>
                     </span>
                 </td>
                 <td class="text-secondary small">${formatDate(u.created_at)}</td>
                 <td class="pe-4 text-end">
                     ${u.role === 'ADMIN' ? '<span class="text-secondary small">Protected</span>' : `
-                        <button class="btn btn-sm ${u.is_active ? 'btn-outline-warning' : 'btn-outline-success'}" onclick="toggleUser(${u.id}, ${u.is_active})">
+                        <button class="btn btn-sm ${u.is_active ? 'btn-outline-warning btn-outline-warning-strong' : 'btn-outline-success'}" onclick="toggleUser(${u.id}, ${u.is_active})">
                             ${u.is_active ? 'Disable' : 'Enable'}
                         </button>
                     `}

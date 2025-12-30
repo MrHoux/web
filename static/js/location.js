@@ -82,44 +82,45 @@ function markDeniedNow() {
 }
 
 let _baiduScriptPromise = null;
-let _baiduLoadAttempt = 0;
-function loadBaiduScript() {
+
+function getBaiduScriptSrc() {
     const { ak, v } = getConfig();
+    const secureParam = window.location.protocol === 'https:' ? '&s=1&https=1' : '';
+    return `https://api.map.baidu.com/api?v=${encodeURIComponent(v)}&ak=${encodeURIComponent(ak)}${secureParam}`;
+}
+
+function loadBaiduScript() {
+    const { ak } = getConfig();
     if (!ak) return Promise.reject(new Error('Missing Baidu Map AK'));
     if (window.BMap) return Promise.resolve();
     if (_baiduScriptPromise) return _baiduScriptPromise;
 
     _baiduScriptPromise = new Promise((resolve, reject) => {
+        const existing = document.getElementById('baidu-map-script');
+        const finish = () => {
+            if (window.BMap) return resolve();
+            reject(new Error('BMap not available after script load'));
+        };
+
+        if (existing) {
+            if (existing.getAttribute('data-loaded') === '1') return finish();
+            existing.addEventListener('load', () => {
+                existing.setAttribute('data-loaded', '1');
+                finish();
+            }, { once: true });
+            existing.addEventListener('error', () => {
+                reject(new Error('Failed to load Baidu Map JS API'));
+            }, { once: true });
+            return;
+        }
+
         const s = document.createElement('script');
-        _baiduLoadAttempt += 1;
-
-        // Two URL forms seen in the wild. If one returns non-JS (e.g. AK/referrer error page),
-        // onload still fires but window.BMap stays undefined. We'll retry once with the other.
-        // On HTTPS pages, prefer /api to avoid mixed-content verify calls.
-        const isHttps = window.location.protocol === 'https:';
-        const useGetScript = !isHttps && _baiduLoadAttempt === 1;
-        const secureParam = isHttps ? '&s=1&https=1' : '';
-        const src = useGetScript
-            ? `https://api.map.baidu.com/getscript?v=${encodeURIComponent(v)}&ak=${encodeURIComponent(ak)}${secureParam}`
-            : `https://api.map.baidu.com/api?v=${encodeURIComponent(v)}&ak=${encodeURIComponent(ak)}${secureParam}`;
-
-        s.src = src;
-        s.async = true;
+        s.id = 'baidu-map-script';
+        s.src = getBaiduScriptSrc();
+        s.async = false;
         s.onload = () => {
-            const check = () => {
-                if (window.BMap) return resolve();
-
-                // Retry once using alternative URL if first load didn't create BMap
-                if (_baiduLoadAttempt < 2) {
-                    try { s.remove(); } catch (_) {}
-                    _baiduScriptPromise = null;
-                    return loadBaiduScript().then(resolve).catch(reject);
-                }
-                reject(new Error('BMap not available after script load'));
-            };
-
-            // Microtask re-check (no setTimeout)
-            Promise.resolve().then(check);
+            s.setAttribute('data-loaded', '1');
+            finish();
         };
         s.onerror = () => {
             reject(new Error('Failed to load Baidu Map JS API'));

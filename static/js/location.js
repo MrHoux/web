@@ -98,9 +98,10 @@ function loadBaiduScript() {
         // Runtime evidence in this repo: /api endpoint can "load" but still leave BMap undefined.
         // Prefer /getscript first, fall back to /api.
         const useGetScript = _baiduLoadAttempt >= 1;
+        const httpsParam = window.location.protocol === 'https:' ? '&https=1' : '';
         const src = useGetScript
-            ? `https://api.map.baidu.com/getscript?v=${encodeURIComponent(v)}&ak=${encodeURIComponent(ak)}`
-            : `https://api.map.baidu.com/api?v=${encodeURIComponent(v)}&ak=${encodeURIComponent(ak)}`;
+            ? `https://api.map.baidu.com/getscript?v=${encodeURIComponent(v)}&ak=${encodeURIComponent(ak)}${httpsParam}`
+            : `https://api.map.baidu.com/api?v=${encodeURIComponent(v)}&ak=${encodeURIComponent(ak)}${httpsParam}`;
 
         s.src = src;
         s.async = true;

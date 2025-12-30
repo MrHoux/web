@@ -29,6 +29,8 @@ def is_public_browse_path(path: str) -> bool:
         return True
     if path.startswith('/store/'):
         return True
+    if path in ('/help', '/terms', '/privacy'):
+        return True
     return False
 
 

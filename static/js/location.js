@@ -95,13 +95,13 @@ function loadBaiduScript() {
 
         // Two URL forms seen in the wild. If one returns non-JS (e.g. AK/referrer error page),
         // onload still fires but window.BMap stays undefined. We'll retry once with the other.
-        // Runtime evidence in this repo: /api endpoint can "load" but still leave BMap undefined.
-        // Prefer /getscript first, fall back to /api.
-        const useGetScript = _baiduLoadAttempt >= 1;
-        const httpsParam = window.location.protocol === 'https:' ? '&https=1' : '';
+        // On HTTPS pages, prefer /api to avoid mixed-content verify calls.
+        const isHttps = window.location.protocol === 'https:';
+        const useGetScript = !isHttps && _baiduLoadAttempt === 1;
+        const secureParam = isHttps ? '&s=1&https=1' : '';
         const src = useGetScript
-            ? `https://api.map.baidu.com/getscript?v=${encodeURIComponent(v)}&ak=${encodeURIComponent(ak)}${httpsParam}`
-            : `https://api.map.baidu.com/api?v=${encodeURIComponent(v)}&ak=${encodeURIComponent(ak)}${httpsParam}`;
+            ? `https://api.map.baidu.com/getscript?v=${encodeURIComponent(v)}&ak=${encodeURIComponent(ak)}${secureParam}`
+            : `https://api.map.baidu.com/api?v=${encodeURIComponent(v)}&ak=${encodeURIComponent(ak)}${secureParam}`;
 
         s.src = src;
         s.async = true;

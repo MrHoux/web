@@ -1,0 +1,179 @@
+{% extends "base.html" %}
+
+{% block title %}Register{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card border-0 shadow-lg">
+                <div class="card-body p-5">
+                    <div class="text-center mb-4">
+                        <h2 class="fw-bold text-primary-dark">Create your NovaMart account</h2>
+                        <p class="text-secondary">First time here? We'll guide you through your first purchase.</p>
+                    </div>
+
+                    <form method="POST" action="{{ url_for('auth.register') }}" class="needs-validation" novalidate>
+                        <div class="row g-3">
+                            <!-- Email -->
+                            <div class="col-12">
+                                <label for="email" class="form-label text-secondary fw-semibold">Email Address</label>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-light border-end-0"><i class="bi bi-envelope text-primary"></i></span>
+                                    <input type="email" class="form-control border-start-0 ps-0" id="email" name="email" required placeholder="name@example.com">
+                                    <div class="invalid-feedback">Please provide a valid email.</div>
+                                </div>
+                            </div>
+
+                            <!-- Password -->
+                            <div class="col-md-6">
+                                <label for="password" class="form-label text-secondary fw-semibold">Password</label>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-light border-end-0"><i class="bi bi-lock text-primary"></i></span>
+                                    <input type="password" class="form-control border-start-0 ps-0" id="password" name="password" required placeholder="Create password" minlength="6">
+                                    <div class="invalid-feedback">Password must be at least 6 characters.</div>
+                                </div>
+                            </div>
+
+                            <!-- Confirm Password -->
+                            <div class="col-md-6">
+                                <label for="confirm_password" class="form-label text-secondary fw-semibold">Confirm Password</label>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-light border-end-0"><i class="bi bi-check2-square text-primary"></i></span>
+                                    <input type="password" class="form-control border-start-0 ps-0" id="confirm_password" required placeholder="Confirm password">
+                                    <div class="invalid-feedback">Passwords do not match.</div>
+                                </div>
+                            </div>
+
+                            <!-- Role Selection -->
+                            <div class="col-12">
+                                <label class="form-label text-secondary fw-semibold">I am a:</label>
+                                <div class="d-flex gap-3">
+                                    <div class="form-check card-radio flex-grow-1">
+                                        <input class="form-check-input" type="radio" name="role" id="roleCustomer" value="CUSTOMER" checked>
+                                        <label class="form-check-label card p-3 text-center border cursor-pointer" for="roleCustomer">
+                                            <i class="bi bi-person fs-3 mb-2 d-block text-primary"></i>
+                                            <span class="fw-semibold">Customer</span>
+                                        </label>
+                                    </div>
+                                    <div class="form-check card-radio flex-grow-1">
+                                        <input class="form-check-input" type="radio" name="role" id="roleMerchant" value="MERCHANT">
+                                        <label class="form-check-label card p-3 text-center border cursor-pointer" for="roleMerchant">
+                                            <i class="bi bi-shop fs-3 mb-2 d-block text-primary"></i>
+                                            <span class="fw-semibold">Merchant</span>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Interest Categories -->
+                            <div class="col-12 mt-4">
+                                <label class="form-label text-secondary fw-semibold mb-3">
+                                    Select your interests
+                                    <span class="text-muted fw-normal small">(Select at least 1)</span>
+                                </label>
+                                <div class="row row-cols-2 row-cols-md-4 g-2">
+                                    {% for category in categories %}
+                                    <div class="col">
+                                        <input type="checkbox" class="btn-check" id="cat_{{ category.id }}" name="interest_category_ids" value="{{ category.id }}" autocomplete="off">
+                                        <label class="btn btn-outline-light w-100 text-dark border py-2" for="cat_{{ category.id }}">
+                                            {{ category.name }}
+                                        </label>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                                <input type="hidden" name="categories_validation" id="categories_validation" required>
+                                <div class="invalid-feedback d-block" id="category-error" style="display: none !important;">
+                                    Please select at least one interest.
+                                </div>
+                            </div>
+
+                            <!-- Terms -->
+                            <div class="col-12 mt-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="terms" required>
+                                    <label class="form-check-label text-secondary small" for="terms">
+                                        I agree to the <a href="{{ url_for('public.terms') }}">Terms of Service</a> and <a href="{{ url_for('public.privacy') }}">Privacy Policy</a>
+                                    </label>
+                                    <div class="invalid-feedback">You must agree before submitting.</div>
+                                </div>
+                            </div>
+
+                            <!-- Submit -->
+                            <div class="col-12 mt-4">
+                                <button type="submit" class="btn btn-primary w-100 py-2 shadow-sm fw-semibold">Create Account</button>
+                            </div>
+                        </div>
+                    </form>
+                    
+                    <div class="text-center mt-4">
+                        <p class="text-secondary mb-0">Already have a NovaMart account? <a href="{{ url_for('auth.login') }}" class="fw-semibold">Sign in</a></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .card-radio .form-check-input {
+        position: absolute;
+        opacity: 0;
+    }
+    .card-radio .form-check-input:checked + .form-check-label {
+        border-color: var(--color-primary) !important;
+        background-color: var(--color-primary-light);
+        color: var(--color-primary-dark);
+    }
+    .btn-check:checked + .btn-outline-light {
+        background-color: var(--color-primary);
+        color: white !important;
+        border-color: var(--color-primary) !important;
+    }
+    .cursor-pointer { cursor: pointer; }
+</style>
+
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const form = document.querySelector('.needs-validation');
+        const password = document.getElementById('password');
+        const confirmPassword = document.getElementById('confirm_password');
+        const categoryInputs = document.querySelectorAll('input[name="interest_category_ids"]');
+        const categoryError = document.getElementById('category-error');
+
+        // Password matching
+        function validatePassword() {
+            if (password.value !== confirmPassword.value) {
+                confirmPassword.setCustomValidity("Passwords don't match");
+            } else {
+                confirmPassword.setCustomValidity('');
+            }
+        }
+        password.addEventListener('change', validatePassword);
+        confirmPassword.addEventListener('keyup', validatePassword);
+
+        // Category validation
+        function validateCategories() {
+            const checked = document.querySelectorAll('input[name="interest_category_ids"]:checked');
+            if (checked.length === 0) {
+                categoryError.style.setProperty('display', 'block', 'important');
+                return false;
+            } else {
+                categoryError.style.setProperty('display', 'none', 'important');
+                return true;
+            }
+        }
+        categoryInputs.forEach(input => input.addEventListener('change', validateCategories));
+
+        // Form submission
+        form.addEventListener('submit', event => {
+            if (!form.checkValidity() || !validateCategories()) {
+                event.preventDefault();
+                event.stopPropagation();
+                validateCategories(); // Show error if invalid
+            }
+            form.classList.add('was-validated');
+        }, false);
+    });
+</script>
+{% endblock %}

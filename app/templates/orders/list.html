@@ -1,0 +1,250 @@
+{% extends "base.html" %}
+
+{% block title %}My Orders{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <h2 class="fw-bold mb-4">My Orders</h2>
+
+    <!-- Tabs/Filter -->
+    <ul class="nav nav-pills mb-4" id="orders-filters">
+        <li class="nav-item">
+            <a class="nav-link active" href="#" data-status="ALL">All Orders</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" href="#" data-status="PROCESSING">Processing</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" href="#" data-status="SHIPPED">Shipped</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" href="#" data-status="COMPLETED">Completed</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" href="#" data-status="AFTER_SALE">After-sales</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" href="#" data-status="CANCELLED">Cancelled</a>
+        </li>
+    </ul>
+
+    <div id="orders-list">
+        <!-- Orders loaded via API in list.html logic or server rendered -->
+        <!-- Since we are using hybrid, let's assume we render via Jinja for list, but use JS for updates -->
+        
+        <!-- Loading state for initial load if we used JS, but here we'll use Jinja loop -->
+        <div class="text-center py-5" id="loading-orders">
+            <div class="spinner-border text-primary" role="status"></div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script type="module">
+    import { api } from "{{ url_for('static', filename='js/api.js') }}";
+    import { formatCurrency, formatDate, showToast } from "{{ url_for('static', filename='js/utils.js') }}";
+
+    let lastOrders = [];
+    let currentFilter = 'ALL';
+
+    document.addEventListener('DOMContentLoaded', () => {
+        initFilters();
+        loadOrders();
+    });
+
+    async function loadOrders() {
+        try {
+            const data = await api.get('/orders');
+            lastOrders = data.items || [];
+            renderOrders(applyFilter(lastOrders, currentFilter));
+        } catch (error) {
+            document.getElementById('orders-list').innerHTML = `
+                <div class="alert alert-danger">Failed to load orders</div>
+            `;
+        }
+    }
+
+    function initFilters() {
+        const container = document.getElementById('orders-filters');
+        if (!container) return;
+
+        container.querySelectorAll('.nav-link').forEach(link => {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                const status = link.dataset.status || 'ALL';
+                currentFilter = status;
+
+                container.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+                link.classList.add('active');
+
+                renderOrders(applyFilter(lastOrders, currentFilter));
+            });
+        });
+    }
+
+    function applyFilter(orders, filter) {
+        if (!orders) return [];
+        if (filter === 'ALL') return orders;
+
+        if (filter === 'PROCESSING') {
+            return orders.filter(o => ['CREATED', 'PAID', 'CANCEL_REQUEST_PENDING', 'EXPIRED'].includes(o.status));
+        }
+        if (filter === 'SHIPPED') {
+            return orders.filter(o => ['SHIPPED', 'DELIVERED'].includes(o.status));
+        }
+        if (filter === 'COMPLETED') {
+            return orders.filter(o => ['COMPLETED'].includes(o.status));
+        }
+        if (filter === 'AFTER_SALE') {
+            return orders.filter(o => ['AFTER_SALE', 'AFTER_SALE_ENDED'].includes(o.status));
+        }
+        if (filter === 'CANCELLED') {
+            return orders.filter(o => ['EXPIRED', 'CANCELLED_BY_USER', 'CANCELLED_BY_MERCHANT', 'CANCELLED_BY_ADMIN'].includes(o.status));
+        }
+        return orders;
+    }
+
+    function renderOrders(orders) {
+        const container = document.getElementById('orders-list');
+        const placeholder = "{{ url_for('static', filename='images/placeholder.png') }}";
+        
+        if (!orders || orders.length === 0) {
+            container.innerHTML = `
+                <div class="text-center py-5 bg-light rounded-3">
+                    <p class="text-secondary mb-3">No orders yet. Start with a category to place your first one.</p>
+                    <a href="{{ url_for('products.product_list') }}" class="btn btn-primary">Browse NovaMart</a>
+                </div>
+            `;
+            return;
+        }
+
+        let html = '';
+        orders.forEach(order => {
+            const statusClass = getStatusClass(order.status);
+            
+            let itemsHtml = '';
+            order.items.forEach(item => {
+                itemsHtml += `
+                    <div class="d-flex align-items-center mb-2">
+                        <img src="${item.product_image_url || placeholder}" class="rounded me-2" style="width: 40px; height: 40px; object-fit: contain;" alt="${item.product_title || 'Product'}">
+                        <div>
+                            <small class="d-block fw-bold">${item.product_title}</small>
+                            <small class="text-muted">Qty: ${item.quantity}</small>
+                        </div>
+                    </div>
+                `;
+            });
+
+            html += `
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-header bg-white py-3 border-bottom">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <span class="fw-bold me-2">Order #${order.id}</span>
+                                <span class="badge ${statusClass}">${order.status}</span>
+                            </div>
+                            <small class="text-secondary">${formatDate(order.created_at)}</small>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-8">
+                                ${itemsHtml}
+                            </div>
+                            <div class="col-md-4 text-md-end border-start-md ps-md-4 pt-3 pt-md-0">
+                                <p class="mb-1 text-secondary">Total Amount</p>
+                                <h5 class="fw-bold text-primary mb-3">${formatCurrency(order.subtotal_amount)}</h5>
+                                <div class="d-grid gap-2">
+                                    <a href="/orders/${order.id}" class="btn btn-outline-primary btn-sm">View Details</a>
+                                    ${renderQuickActions(order)}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+
+        container.innerHTML = html;
+
+        // Bind quick action handlers
+        container.querySelectorAll('[data-action="pay"]').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                e.preventDefault();
+                const groupId = btn.dataset.groupId;
+                try {
+                    await api.post(`/api/order-groups/${groupId}/pay`, { method: 'MOCK' }, { showLoading: true });
+                    showToast('Payment successful (all items)', 'success');
+                    loadOrders();
+                } catch (err) {
+                    showToast(err.message || 'Payment failed', 'error');
+                }
+            });
+        });
+
+        container.querySelectorAll('[data-action="cancel"]').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                e.preventDefault();
+                const orderId = btn.dataset.orderId;
+                if (!confirm('Cancel this order?')) return;
+                try {
+                    const res = await api.post(`/api/orders/${orderId}/cancel`, { reason: 'User requested cancellation' }, { showLoading: true });
+                    if (res.requires_merchant_approval) {
+                        showToast('Cancellation request sent to merchant for approval', 'info');
+                    } else {
+                        showToast('Order cancelled', 'success');
+                    }
+                    loadOrders();
+                } catch (err) {
+                    showToast(err.message || 'Cancel failed', 'error');
+                    loadOrders();
+                }
+            });
+        });
+    }
+
+    function renderQuickActions(order) {
+        if (order.status === 'CREATED') {
+            return `
+                <button class="btn btn-success btn-sm" data-action="pay" data-group-id="${order.order_group_id}">Pay All</button>
+                <button class="btn btn-outline-danger btn-sm" data-action="cancel" data-order-id="${order.id}">Cancel</button>
+            `;
+        }
+        if (order.status === 'PAID') {
+            return `
+                <button class="btn btn-outline-danger btn-sm" data-action="cancel" data-order-id="${order.id}">Cancel / Request Cancel</button>
+            `;
+        }
+        if (order.status === 'CANCEL_REQUEST_PENDING') {
+            return `
+                <span class="badge status-pending">Cancel Pending</span>
+            `;
+        }
+        if (order.status === 'EXPIRED') {
+            return `
+                <button class="btn btn-outline-secondary btn-sm" disabled>Expired</button>
+            `;
+        }
+        return '';
+    }
+
+    function getStatusClass(status) {
+        const map = {
+            'CREATED': 'status-created',
+            'EXPIRED': 'status-expired',
+            'PAID': 'status-paid',
+            'CANCEL_REQUEST_PENDING': 'status-pending',
+            'SHIPPED': 'status-shipped',
+            'DELIVERED': 'status-delivered',
+            'COMPLETED': 'status-completed',
+            'AFTER_SALE': 'status-pending',
+            'AFTER_SALE_ENDED': 'status-after-sale-ended',
+            'CANCELLED_BY_USER': 'status-cancelled',
+            'CANCELLED_BY_MERCHANT': 'status-cancelled',
+            'CANCELLED_BY_ADMIN': 'status-cancelled'
+        };
+        return map[status] || 'bg-secondary text-white';
+    }
+</script>
+{% endblock %}

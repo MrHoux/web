@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+
+{% block title %}Privacy Policy{% endblock %}
+
+{% block content %}
+<section class="policy-hero">
+    <div class="container">
+        <div class="policy-header">
+            <div>
+                <span class="help-eyebrow">NovaMart Policies</span>
+                <h1 class="display-6 fw-bold text-primary-dark mb-2">Privacy Policy</h1>
+                <p class="text-secondary mb-0">How we collect, use, and protect your data.</p>
+            </div>
+            <a class="btn btn-outline-primary rounded-pill" href="{{ url_for('public.help_center') }}">Back to Help</a>
+        </div>
+    </div>
+</section>
+
+<section class="container policy-body">
+    <div class="row g-4">
+        <div class="col-lg-4">
+            <div class="policy-card">
+                <h6 class="text-uppercase text-secondary small mb-3">Contents</h6>
+                <ul class="list-unstyled policy-toc">
+                    <li><a href="#data">Data we collect</a></li>
+                    <li><a href="#usage">How we use data</a></li>
+                    <li><a href="#sharing">Sharing & disclosure</a></li>
+                    <li><a href="#security">Security</a></li>
+                    <li><a href="#rights">Your rights</a></li>
+                </ul>
+            </div>
+        </div>
+        <div class="col-lg-8">
+            <div class="policy-card">
+                <h4 id="data" class="mb-3">Data we collect</h4>
+                <p class="text-secondary">We collect account details, shipping addresses, order history, and on-site activity needed to personalize your shopping experience.</p>
+
+                <h4 id="usage" class="mb-3 mt-4">How we use data</h4>
+                <p class="text-secondary">We use your data to process orders, provide support, recommend products, and improve NovaMart features.</p>
+
+                <h4 id="sharing" class="mb-3 mt-4">Sharing & disclosure</h4>
+                <p class="text-secondary">We only share information with merchants and service providers needed to fulfill your orders. We never sell personal data.</p>
+
+                <h4 id="security" class="mb-3 mt-4">Security</h4>
+                <p class="text-secondary">We use secure storage, role-based access, and audit logging to protect data. Always keep your credentials private.</p>
+
+                <h4 id="rights" class="mb-3 mt-4">Your rights</h4>
+                <p class="text-secondary">You can update profile details, manage saved addresses, and request account deletion by contacting support.</p>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}

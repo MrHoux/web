@@ -1,0 +1,35 @@
+{% set rating = rating or {'avg': 0, 'count': 0, 'percents': {5: 0, 4: 0, 3: 0, 2: 0, 1: 0}} %}
+{% set avg = rating.avg %}
+{% set count = rating.count %}
+
+<div class="rating-wrap" aria-label="Average rating {{ '%.1f'|format(avg) }} out of 5" tabindex="0">
+    <div class="rating-summary">
+        <span class="rating-value">{{ '%.1f'|format(avg) }}</span>
+        <span class="rating-stars">
+            {% for i in range(1, 6) %}
+                {% if avg >= i %}
+                    <i class="bi bi-star-fill"></i>
+                {% elif avg >= i - 0.5 %}
+                    <i class="bi bi-star-half"></i>
+                {% else %}
+                    <i class="bi bi-star"></i>
+                {% endif %}
+            {% endfor %}
+        </span>
+        <span class="rating-count">({{ count }})</span>
+        <i class="bi bi-chevron-down small text-secondary"></i>
+    </div>
+    <div class="rating-popover">
+        <div class="rating-popover-header">{{ '%.1f'|format(avg) }} stars · {{ count }} reviews</div>
+        {% for star in [5, 4, 3, 2, 1] %}
+            {% set percent = rating.percents.get(star, 0) %}
+            <div class="rating-row">
+                <span class="rating-label">{{ star }} star</span>
+                <div class="rating-bar">
+                    <div class="rating-bar-fill" style="width: {{ percent }}%"></div>
+                </div>
+                <span class="rating-percent">{{ percent }}%</span>
+            </div>
+        {% endfor %}
+    </div>
+</div>

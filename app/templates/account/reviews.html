@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+
+{% block title %}My Reviews{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+  <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
+    <div>
+      <h2 class="fw-bold mb-1">My Reviews</h2>
+      <p class="text-secondary mb-0">Track your reviews and follow-ups.</p>
+    </div>
+    <a class="btn btn-outline-primary" href="{{ url_for('account.overview') }}"><i class="bi bi-arrow-left me-2"></i>Back</a>
+  </div>
+
+  <div class="card border-0 shadow-sm">
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table align-middle mb-0">
+          <thead class="bg-light">
+            <tr>
+              <th class="ps-4">Product</th>
+              <th>Rating</th>
+              <th>Review</th>
+              <th>Date</th>
+            </tr>
+          </thead>
+          <tbody id="reviews-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="followUpModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg">
+      <div class="modal-header border-bottom-0">
+        <h5 class="modal-title fw-bold">Add Follow-up</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body p-4">
+        <form id="follow-up-form">
+          <div class="mb-3">
+            <label for="follow-up-content" class="form-label text-secondary fw-semibold">Follow-up</label>
+            <textarea class="form-control" id="follow-up-content" rows="4" placeholder="Add your update..." required></textarea>
+          </div>
+          <button type="submit" class="btn btn-primary w-100 shadow-sm">Submit Follow-up</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script type="module">
+  import { api } from "{{ url_for('static', filename='js/api.js') }}";
+  import { formatDate, showToast } from "{{ url_for('static', filename='js/utils.js') }}";
+
+  let activeReviewId = null;
+  let followUpModal = null;
+
+  document.addEventListener('DOMContentLoaded', () => {
+    const modalEl = document.getElementById('followUpModal');
+    if (modalEl && window.bootstrap && bootstrap.Modal) {
+      followUpModal = new bootstrap.Modal(modalEl);
+    }
+    const followUpForm = document.getElementById('follow-up-form');
+    if (followUpForm) {
+      followUpForm.addEventListener('submit', submitFollowUp);
+    }
+    loadReviews();
+  });
+
+  async function loadReviews() {
+    try {
+      const data = await api.get('/api/account/reviews');
+      render(data.items || []);
+    } catch (e) {
+      showToast('Failed to load reviews', 'error');
+    }
+  }
+
+  function stars(n) {
+    const x = Math.max(0, Math.min(5, n || 0));
+    return '★★★★★'.slice(0, x) + '☆☆☆☆☆'.slice(0, 5 - x);
+  }
+
+  function render(items) {
+    const tbody = document.getElementById('reviews-body');
+    if (!items.length) {
+      tbody.innerHTML = '<tr><td colspan="4" class="text-center py-5 text-secondary">No reviews</td></tr>';
+      return;
+    }
+    tbody.innerHTML = items.map(r => `
+      <tr>
+        <td class="ps-4 fw-semibold">${r.product_id ? `<a class="text-decoration-none" href="/p/${r.product_id}">${r.product_title || ('Product #' + r.product_id)}</a>` : '-'}</td>
+        <td><span class="font-monospace">${stars(r.rating)}</span></td>
+        <td class="text-secondary">
+          <div>${r.content || ''}</div>
+          ${r.follow_up_content ? `
+            <div class="mt-2 p-2 bg-light rounded-3">
+              <div class="small text-secondary mb-1">Follow-up · ${r.follow_up_created_at ? formatDate(r.follow_up_created_at, { withSeconds: false }) : ''}</div>
+              <div>${r.follow_up_content}</div>
+            </div>
+          ` : `
+            <div class="mt-2">
+              <button class="btn btn-link p-0 text-decoration-none follow-up-btn" data-review-id="${r.id}">Add Follow-up</button>
+            </div>
+          `}
+        </td>
+        <td class="text-secondary">${formatDate(r.created_at, { withSeconds: false })}</td>
+      </tr>
+    `).join('');
+    bindFollowUpButtons();
+  }
+
+  function bindFollowUpButtons() {
+    document.querySelectorAll('.follow-up-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        activeReviewId = btn.dataset.reviewId;
+        const input = document.getElementById('follow-up-content');
+        if (input) input.value = '';
+        if (followUpModal) {
+          followUpModal.show();
+        }
+      });
+    });
+  }
+
+  async function submitFollowUp(e) {
+    e.preventDefault();
+    const input = document.getElementById('follow-up-content');
+    const content = input ? input.value.trim() : '';
+    if (!content) {
+      showToast('Please enter follow-up content', 'error');
+      return;
+    }
+    if (!activeReviewId) {
+      showToast('Review not found', 'error');
+      return;
+    }
+    try {
+      await api.post(`/api/reviews/${activeReviewId}/follow-up`, { content }, { showLoading: true });
+      showToast('Follow-up added', 'success');
+      if (followUpModal) followUpModal.hide();
+      loadReviews();
+    } catch (e) {
+      showToast(e.message || 'Failed to add follow-up', 'error');
+    }
+  }
+</script>
+{% endblock %}

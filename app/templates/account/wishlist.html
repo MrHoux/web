@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+
+{% block title %}Wishlist{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+  <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
+    <div>
+      <h2 class="fw-bold mb-1">My Wishlist</h2>
+      <p class="text-secondary mb-0">Saved for later, ready when you are.</p>
+    </div>
+    <a class="btn btn-outline-primary" href="{{ url_for('account.overview') }}"><i class="bi bi-arrow-left me-2"></i>Back</a>
+  </div>
+
+  <div class="card border-0 shadow-sm">
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table align-middle mb-0">
+          <thead class="bg-light">
+            <tr>
+              <th class="ps-4">Product</th>
+              <th>Price</th>
+              <th>Stock</th>
+              <th class="pe-4 text-end">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="wishlist-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script type="module">
+  import { api } from "{{ url_for('static', filename='js/api.js') }}";
+  import { formatCurrency, updateCartBadge } from "{{ url_for('static', filename='js/utils.js') }}";
+
+  document.addEventListener('DOMContentLoaded', loadWishlist);
+
+  async function loadWishlist() {
+    try {
+      const data = await api.get('/api/account/wishlist');
+      render(data.items || []);
+    } catch (e) {
+      // silent
+    }
+  }
+
+  function render(items) {
+    const tbody = document.getElementById('wishlist-body');
+    if (!items.length) {
+      tbody.innerHTML = '<tr><td colspan="4" class="text-center py-5 text-secondary">Wishlist is empty</td></tr>';
+      return;
+    }
+    tbody.innerHTML = items.map(p => `
+      <tr>
+        <td class="ps-4 fw-semibold"><a class="text-decoration-none" href="/p/${p.product_id}">${p.title}</a></td>
+        <td>${formatCurrency(p.price)}</td>
+        <td class="text-secondary">${p.stock === 0 ? 'Out of stock' : p.stock}</td>
+        <td class="pe-4 text-end">
+          <button class="btn btn-sm btn-outline-danger" onclick="toggle(${p.product_id})">Remove</button>
+          <button class="btn btn-sm btn-primary ms-2" onclick="add(${p.product_id})" ${p.stock === 0 ? 'disabled' : ''}>Add to cart</button>
+        </td>
+      </tr>
+    `).join('');
+    window.toggle = toggle;
+    window.add = add;
+  }
+
+  async function toggle(productId) {
+    try {
+      await api.post('/api/wishlist/toggle', { product_id: productId }, { showLoading: false });
+      loadWishlist();
+    } catch (e) {
+      // silent
+    }
+  }
+
+  async function add(productId) {
+    try {
+      await api.post('/api/cart/items', { product_id: productId, quantity: 1 }, { showLoading: false });
+      const cartData = await api.get("{{ url_for('cart.get_cart') }}", { showLoading: false });
+      updateCartBadge(cartData.total_items);
+    } catch (e) {
+      // silent
+    }
+  }
+</script>
+{% endblock %}
+

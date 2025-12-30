@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+
+{% block title %}Customer Messages{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
+        <div>
+            <h2 class="fw-bold mb-1">Customer Messages</h2>
+            <p class="text-secondary mb-0">Handle product and order questions quickly.</p>
+        </div>
+        <a class="btn btn-outline-primary" href="{{ url_for('merchant.dashboard') }}">
+            <i class="bi bi-arrow-left me-2"></i>Back
+        </a>
+    </div>
+
+    <div class="card border-0 shadow-sm chat-shell" id="chat-root" data-role="merchant">
+        <div class="chat-sidebar">
+            <div class="chat-sidebar-header">
+                <div class="d-flex align-items-center justify-content-between">
+                    <span>Customers</span>
+                    <span class="chat-pill">Live</span>
+                </div>
+                <div class="chat-search mt-2">
+                    <i class="bi bi-search"></i>
+                    <input type="text" id="chat-search" placeholder="Search conversations" aria-label="Search conversations">
+                </div>
+            </div>
+            <div class="chat-list" id="chat-conv-list">
+                <div class="text-center text-secondary py-5">Loading...</div>
+            </div>
+        </div>
+
+        <div class="chat-main">
+            <div class="chat-main-header">
+                <div class="chat-peer">
+                    <button class="btn btn-outline-secondary btn-sm chat-back-btn" type="button" aria-label="Back to conversations">
+                        <i class="bi bi-arrow-left"></i>
+                    </button>
+                    <div>
+                        <div class="fw-semibold" id="chat-peer-label">Please select a conversation</div>
+                        <div class="small text-secondary" id="chat-peer-sub">Choose a conversation on the left to get started.</div>
+                    </div>
+                </div>
+                <div class="chat-header-meta">
+                    <span class="chat-pill"><i class="bi bi-shield-check me-1"></i>Secure</span>
+                </div>
+            </div>
+            <div class="chat-messages" id="chat-messages">
+                <div class="text-center text-secondary py-5">Please select a conversation</div>
+            </div>
+            <div class="chat-composer">
+                <div class="chat-tools">
+                    <button class="btn btn-outline-secondary btn-sm" type="button" id="chat-emoji-btn" aria-label="Send emoji">
+                        <i class="bi bi-emoji-smile"></i>
+                    </button>
+                    <label class="btn btn-outline-secondary btn-sm mb-0">
+                        <i class="bi bi-image"></i>
+                        <label class="visually-hidden" for="chat-image-input">Upload chat image</label>
+                        <input type="file" id="chat-image-input" accept="image/*" class="d-none" aria-label="Upload chat image">
+                    </label>
+                </div>
+                <div class="chat-emoji-panel" id="chat-emoji-panel"></div>
+                <div class="d-flex gap-2 align-items-end">
+                    <label class="visually-hidden" for="chat-input">Chat message</label>
+                    <textarea class="form-control" id="chat-input" rows="2" placeholder="Type your reply..." aria-label="Chat message"></textarea>
+                    <button class="btn btn-primary px-4" id="chat-send-btn">Send</button>
+                </div>
+                <div class="form-text text-secondary mt-2">
+                    Tip: Use images to show product details or shipping proof. Press Enter to send.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script type="module" src="{{ url_for('static', filename='js/chat.js') }}"></script>
+{% endblock %}

@@ -1,0 +1,257 @@
+{% extends "base.html" %}
+
+{% block title %}Checkout{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="checkout-steps">
+        <div class="step-item active">
+            <div class="step-circle">1</div>
+            <span class="step-label">Shipping</span>
+        </div>
+        <div class="step-item">
+            <div class="step-circle">2</div>
+            <span class="step-label">Payment</span>
+        </div>
+        <div class="step-item">
+            <div class="step-circle">3</div>
+            <span class="step-label">Confirmation</span>
+        </div>
+    </div>
+
+    <div class="row g-5">
+        <div class="col-lg-8">
+            <form id="checkout-form" class="needs-validation" novalidate>
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-body p-4">
+                        <h4 class="fw-bold mb-4">Shipping Address</h4>
+
+                        <div class="mb-3" id="saved-addresses-wrap" style="display:none;">
+                            <label class="form-label" for="saved-address-select">Saved addresses</label>
+                            <select class="form-select" id="saved-address-select">
+                                <option value="">Use a new address</option>
+                            </select>
+                            <div class="form-text text-secondary">Selecting a saved address will auto-fill the form below.</div>
+                        </div>
+
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label for="recipient_name" class="form-label">Full Name</label>
+                                <input type="text" class="form-control" id="recipient_name" name="recipient_name" required>
+                                <div class="invalid-feedback">Required</div>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="phone" class="form-label">Phone Number</label>
+                                <input type="tel" class="form-control" id="phone" name="phone" required>
+                                <div class="invalid-feedback">Required</div>
+                            </div>
+                            <div class="col-md-4">
+                                <label for="province" class="form-label">Province</label>
+                                <input type="text" class="form-control" id="province" name="province" placeholder="Province" required>
+                            </div>
+                            <div class="col-md-4">
+                                <label for="city" class="form-label">City</label>
+                                <input type="text" class="form-control" id="city" name="city" required>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <label for="district" class="form-label mb-0">District</label>
+                                    <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="modal" data-bs-target="#locationModal" aria-label="Pick on map or use my location">
+                                        <i class="bi bi-map me-1"></i><span class="d-none d-md-inline">Choose</span>
+                                    </button>
+                                </div>
+                                <input type="text" class="form-control" id="district" name="district" required>
+                            </div>
+                            <div class="col-12">
+                                <label for="detail_address" class="form-label">Address</label>
+                                <input type="text" class="form-control" id="detail_address" name="detail_address" placeholder="1234 Main St" required>
+                            </div>
+                            <div class="col-md-4">
+                                <label for="postal_code" class="form-label">Zip Code (Optional)</label>
+                                <input type="text" class="form-control" id="postal_code" name="postal_code">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-body p-4">
+                        <h4 class="fw-bold mb-4">Payment Method</h4>
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="radio" name="paymentMethod" id="paymentMock" checked>
+                            <label class="form-check-label" for="paymentMock">
+                                Test Payment (Mock)
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <button class="btn btn-primary w-100 btn-lg shadow-sm" type="submit" id="place-order-btn">
+                    Place Order
+                </button>
+            </form>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card border-0 shadow-sm sticky-top" style="top: 90px;">
+                <div class="card-body p-4">
+                    <h5 class="fw-bold mb-4">Order Summary</h5>
+                    <div id="checkout-summary">
+                        <div class="text-center py-3">
+                            <div class="spinner-border text-primary spinner-border-sm" role="status"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script type="module">
+    import { api } from "{{ url_for('static', filename='js/api.js') }}";
+    import { showToast, formatCurrency } from "{{ url_for('static', filename='js/utils.js') }}";
+
+    document.addEventListener('DOMContentLoaded', async () => {
+        // Load saved addresses
+        try {
+            const res = await api.get('/api/account/addresses', { showLoading: false });
+            const items = res.items || [];
+            const wrap = document.getElementById('saved-addresses-wrap');
+            const sel = document.getElementById('saved-address-select');
+            if (items.length > 0) {
+                wrap.style.display = '';
+                sel.innerHTML = `<option value="">Use a new address</option>` + items.map(a =>
+                    `<option value="${a.id}">${a.recipient_name} · ${a.phone} · ${a.province}${a.city}${a.district}${a.detail_address}</option>`
+                ).join('');
+
+                sel.addEventListener('change', () => {
+                    const id = parseInt(sel.value);
+                    const a = items.find(x => x.id === id);
+                    if (!a) return;
+                    document.getElementById('recipient_name').value = a.recipient_name || '';
+                    document.getElementById('phone').value = a.phone || '';
+                    // province is a <select>; if value not in options, set to blank and let user adjust
+                    const prov = document.getElementById('province');
+                    prov.value = a.province || '';
+                    document.getElementById('city').value = a.city || '';
+                    document.getElementById('district').value = a.district || '';
+                    document.getElementById('detail_address').value = a.detail_address || '';
+                    document.getElementById('postal_code').value = a.postal_code || '';
+                });
+            }
+        } catch (e) {
+            // optional: silent; user can still type manually
+        }
+
+        // Load cart summary
+        try {
+            const cart = await api.get("{{ url_for('cart.get_cart') }}");
+            renderSummary(cart);
+        } catch (error) {
+            showToast('Failed to load order summary', 'error');
+        }
+
+        // Handle form submit
+        const form = document.getElementById('checkout-form');
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            if (!form.checkValidity()) {
+                e.stopPropagation();
+                form.classList.add('was-validated');
+                return;
+            }
+
+            const formData = new FormData(form);
+            const addressData = Object.fromEntries(formData.entries());
+            
+            // Clean up address data structure for API
+            const payload = {
+                address: {
+                    recipient_name: addressData.recipient_name,
+                    phone: addressData.phone,
+                    province: addressData.province,
+                    city: addressData.city,
+                    district: addressData.district,
+                    detail_address: addressData.detail_address,
+                    postal_code: addressData.postal_code
+                }
+            };
+
+            try {
+                const savedSelect = document.getElementById('saved-address-select');
+                const isNewAddress = !savedSelect || !savedSelect.value;
+                if (isNewAddress) {
+                    const shouldSave = confirm('Save this address to your address book?');
+                    if (shouldSave) {
+                        try {
+                            await api.post('/api/account/addresses', payload.address, { showLoading: false });
+                            showToast('Address saved', 'success');
+                        } catch (saveError) {
+                            showToast(saveError.message || 'Failed to save address', 'error');
+                        }
+                    }
+                }
+                const result = await api.post('/api/checkout', payload, { showLoading: true });
+                showToast('Order placed successfully!', 'success');
+                
+                // Redirect to payment page (order detail) instead of orders list
+                const firstOrderId = result?.merchant_orders?.[0]?.merchant_order_id;
+                setTimeout(() => {
+                    if (firstOrderId) window.location.href = `/orders/${firstOrderId}`;
+                    else window.location.href = "{{ url_for('orders.order_list') }}";
+                }, 300);
+            } catch (error) {
+                showToast(error.message, 'error');
+            }
+        });
+    });
+
+    function renderSummary(cart) {
+        const container = document.getElementById('checkout-summary');
+        if (!cart.items || cart.items.length === 0) {
+            container.innerHTML = '<p class="text-muted">Cart is empty</p>';
+            document.getElementById('place-order-btn').disabled = true;
+            return;
+        }
+
+        let total = 0;
+        let html = '<ul class="list-group list-group-flush mb-3">';
+        
+        cart.items.forEach(item => {
+            const itemTotal = item.product.price * item.quantity;
+            total += itemTotal;
+            html += `
+                <li class="list-group-item d-flex justify-content-between lh-sm px-0">
+                    <div>
+                        <h6 class="my-0 small">${item.product.title}</h6>
+                        <small class="text-muted">x ${item.quantity}</small>
+                    </div>
+                    <span class="text-muted">${formatCurrency(itemTotal)}</span>
+                </li>
+            `;
+        });
+
+        html += `
+            </ul>
+            <div class="d-flex justify-content-between mb-3">
+                <span class="text-secondary">Subtotal</span>
+                <span class="fw-bold">${formatCurrency(total)}</span>
+            </div>
+            <div class="d-flex justify-content-between mb-3">
+                <span class="text-secondary">Shipping</span>
+                <span class="text-success">Free</span>
+            </div>
+            <hr class="my-4">
+            <div class="d-flex justify-content-between">
+                <span class="fw-bold fs-5">Total</span>
+                <span class="fw-bold fs-5 text-primary">${formatCurrency(total)}</span>
+            </div>
+        `;
+
+        container.innerHTML = html;
+    }
+</script>
+{% endblock %}
+

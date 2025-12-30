@@ -1,0 +1,219 @@
+:root {
+    /* Color Palette */
+    /* Orange theme (WCAG-friendly contrast on light backgrounds) */
+    --color-primary-light: #FFEDD5; /* orange-100 (tints/highlights) */
+    --color-primary: #C2410C;       /* orange-700 (buttons/active) */
+    --color-primary-dark: #7C2D12;  /* orange-900-ish (headings/dark UI) */
+    --color-background: #FFF7ED;    /* orange-50 (page background) */
+    --color-surface: #FFFFFF;       /* cards */
+    --color-border: #FED7AA;        /* orange-200 (borders/dividers) */
+    --color-text-primary: #1F2937;  /* slate-800 */
+    --color-text-secondary: #4B5563;/* slate-600 */
+    
+    /* Functional Colors */
+    --color-success: #16A34A; /* green-600 */
+    --color-danger: #DC2626;  /* red-600 */
+    --color-warning: #F59E0B; /* amber-500 */
+    --color-info: #0EA5E9;    /* sky-500 */
+
+    /* Helpers */
+    --color-primary-rgb: 194, 65, 12; /* #C2410C */
+
+    /* Spacing */
+    --spacing-xs: 0.25rem;
+    --spacing-sm: 0.5rem;
+    --spacing-md: 1rem;
+    --spacing-lg: 1.5rem;
+    --spacing-xl: 2rem;
+    
+    /* Borders */
+    --border-radius-sm: 4px;
+    --border-radius-md: 8px;
+    --border-radius-lg: 12px;
+    
+    /* Shadows */
+    --shadow-sm: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
+    --shadow-md: 0 3px 6px rgba(0,0,0,0.16), 0 3px 6px rgba(0,0,0,0.23);
+    --shadow-lg: 0 10px 20px rgba(0,0,0,0.19), 0 6px 6px rgba(0,0,0,0.23);
+
+    /* Typography */
+    --font-body: "Manrope", sans-serif;
+    --font-display: "Space Grotesk", sans-serif;
+}
+
+/* Reset & Base */
+body {
+    font-family: var(--font-body);
+    background-color: var(--color-background);
+    color: var(--color-text-primary);
+    line-height: 1.6;
+}
+
+h1, h2, h3, h4, h5, h6 {
+    color: var(--color-primary-dark);
+    font-family: var(--font-display);
+    font-weight: 600;
+    letter-spacing: -0.01em;
+}
+
+a {
+    color: var(--color-primary);
+    text-decoration: none;
+    transition: color 0.2s ease;
+}
+
+a:hover {
+    color: var(--color-primary-dark);
+}
+
+/* Utility Classes */
+.text-primary-dark { color: var(--color-primary-dark) !important; }
+.text-secondary { color: var(--color-text-secondary) !important; }
+.bg-surface { background-color: var(--color-surface) !important; }
+.bg-primary-light { background-color: var(--color-primary-light) !important; }
+
+.shadow-sm { box-shadow: var(--shadow-sm) !important; }
+.shadow-md { box-shadow: var(--shadow-md) !important; }
+.shadow-lg { box-shadow: var(--shadow-lg) !important; }
+
+.rounded-md { border-radius: var(--border-radius-md) !important; }
+.rounded-lg { border-radius: var(--border-radius-lg) !important; }
+
+/* Ajax alerts container: fully collapse when empty */
+#ajax-alerts:empty {
+    display: none;
+}
+
+/* Components Overrides */
+.card {
+    border: none;
+    border-radius: var(--border-radius-md);
+    box-shadow: var(--shadow-sm);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    background-color: var(--color-surface);
+}
+
+.card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+.btn-primary {
+    background-color: var(--color-primary);
+    border-color: var(--color-primary);
+    color: white;
+}
+
+.btn-primary:hover {
+    background-color: #9A3412; /* deeper hover */
+    border-color: #9A3412;
+}
+
+.btn-outline-primary {
+    color: var(--color-primary);
+    border-color: var(--color-primary);
+}
+
+.btn-outline-primary:hover {
+    background-color: var(--color-primary);
+    color: white;
+}
+
+.form-control:focus {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 0.25rem rgba(var(--color-primary-rgb), 0.25);
+}
+
+/* Navbar */
+.navbar {
+    background-color: var(--color-surface);
+    box-shadow: var(--shadow-sm);
+}
+
+.navbar-brand {
+    font-weight: 700;
+    color: var(--color-primary-dark) !important;
+}
+
+.nav-link {
+    color: var(--color-text-primary) !important;
+    font-weight: 500;
+}
+
+.nav-link:hover, .nav-link.active {
+    color: var(--color-primary) !important;
+}
+
+/* Dropdown polish (more "premium" feel) */
+.dropdown-menu {
+    border: 1px solid var(--color-border);
+    border-radius: var(--border-radius-lg);
+    padding: 0.5rem;
+    min-width: 220px;
+    box-shadow: var(--shadow-md);
+}
+.dropdown-item {
+    border-radius: 10px;
+    padding: 0.6rem 0.75rem;
+    color: var(--color-text-primary);
+}
+.dropdown-item:hover,
+.dropdown-item:focus {
+    background-color: var(--color-primary-light);
+    color: var(--color-primary-dark);
+}
+.dropdown-divider {
+    margin: 0.5rem 0;
+    border-top-color: var(--color-border);
+}
+
+/* Orders page pills: use theme primary instead of Bootstrap default blue */
+.nav-pills .nav-link.active,
+.nav-pills .show > .nav-link {
+    background-color: var(--color-primary) !important;
+    color: #ffffff !important;
+}
+
+.nav-pills .nav-link {
+    color: var(--color-text-primary) !important;
+}
+
+/* Footer */
+footer {
+    background-color: var(--color-primary-dark);
+    color: var(--color-surface);
+    padding: var(--spacing-xl) 0;
+    margin-top: auto;
+}
+
+footer a {
+    color: var(--color-primary-light);
+}
+
+footer a:hover {
+    color: white;
+}
+
+.footer-muted {
+    color: rgba(255, 255, 255, 0.92) !important;
+}
+
+/* Layout */
+.main-container {
+    min-height: calc(100vh - 160px); /* Adjust based on footer height */
+    padding-bottom: var(--spacing-xl);
+}
+
+/* Loading Spinner */
+.spinner-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(255,255,255,0.7);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+}

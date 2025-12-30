@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+
+{% block title %}Membership{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h2 class="fw-bold mb-1">Membership & Points</h2>
+      <p class="text-secondary mb-0">Points are based on net paid orders; refunds reduce points.</p>
+    </div>
+    <a class="btn btn-outline-primary" href="{{ url_for('account.overview') }}"><i class="bi bi-arrow-left me-2"></i>Back</a>
+  </div>
+
+  <div class="card border-0 shadow-sm">
+    <div class="card-body p-4">
+      <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+        <div>
+          <div class="text-secondary small fw-semibold text-uppercase">Current tier</div>
+          <div class="fs-3 fw-bold">
+            <i class="bi {{ loyalty.membership.icon }} text-primary me-2"></i>{{ loyalty.membership.name }}
+          </div>
+        </div>
+        <div class="text-end">
+          <div class="text-secondary small">Points</div>
+          <div class="fs-3 fw-bold">{{ loyalty.points }}</div>
+        </div>
+      </div>
+
+      <hr>
+
+      <div class="d-flex justify-content-between text-secondary">
+        <span>Total spent</span>
+        <span class="fw-semibold">${{ "%.2f"|format(loyalty.total_spent) }}</span>
+      </div>
+
+      {% if loyalty.membership.next %}
+        <div class="text-secondary small mt-3">
+          Next: <span class="fw-semibold">{{ loyalty.membership.next.name }}</span>
+          <span class="ms-1">({{ loyalty.membership.next.points_needed }} pts to go)</span>
+        </div>
+        {% set next_points = loyalty.membership.next.min_points %}
+        {% set progress = (loyalty.points / next_points * 100) if next_points > 0 else 100 %}
+        <div class="progress mt-2" style="height: 10px;">
+          <div class="progress-bar" role="progressbar" style="width: {{ 100 if progress > 100 else progress }}%"></div>
+        </div>
+      {% else %}
+        <div class="alert alert-success mt-3 mb-0">
+          <i class="bi bi-stars me-2"></i> You’re at the top tier.
+        </div>
+      {% endif %}
+
+      <div class="mt-4 text-secondary small">
+        <div><span class="fw-semibold">Rule:</span> 1 currency unit = 1 point</div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+

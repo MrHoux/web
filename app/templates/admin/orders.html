@@ -1,0 +1,257 @@
+{% extends "base.html" %}
+
+{% block title %}Manage Orders{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+  <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
+    <div>
+      <h2 class="fw-bold mb-1">Orders</h2>
+      <p class="text-secondary mb-0">Operational console for order oversight and overrides.</p>
+    </div>
+    <div class="d-flex gap-2 align-items-center">
+      <label class="visually-hidden" for="status-filter">Filter orders by status</label>
+      <select class="form-select" id="status-filter" style="min-width: 220px;">
+        <option value="">All statuses</option>
+        <option value="CREATED">CREATED</option>
+        <option value="PAID">PAID</option>
+        <option value="SHIPPED">SHIPPED</option>
+        <option value="DELIVERED">DELIVERED</option>
+        <option value="COMPLETED">COMPLETED</option>
+        <option value="AFTER_SALE">AFTER_SALE</option>
+        <option value="AFTER_SALE_ENDED">AFTER_SALE_ENDED</option>
+        <option value="CANCELLED_BY_USER">CANCELLED_BY_USER</option>
+        <option value="CANCELLED_BY_MERCHANT">CANCELLED_BY_MERCHANT</option>
+        <option value="CANCELLED_BY_ADMIN">CANCELLED_BY_ADMIN</option>
+      </select>
+      <button class="btn btn-outline-primary" id="refresh-btn"><i class="bi bi-arrow-repeat me-2"></i>Refresh</button>
+    </div>
+  </div>
+
+  <ul class="nav nav-pills mb-3" id="admin-orders-tabs">
+    <li class="nav-item"><button class="nav-link active" data-tab="orders" type="button">Orders</button></li>
+    <li class="nav-item"><button class="nav-link" data-tab="cancel-requests" type="button">Cancel Requests</button></li>
+  </ul>
+
+  <div id="tab-orders">
+    <div class="card border-0 shadow-sm">
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0">
+            <thead class="bg-light">
+              <tr>
+                <th class="ps-4">Order</th>
+                <th>Status</th>
+                <th>Total</th>
+                <th>Customer</th>
+                <th>Merchant</th>
+                <th>Date</th>
+                <th class="pe-4 text-end">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="orders-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="tab-cancel-requests" class="d-none">
+    <div class="card border-0 shadow-sm">
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0">
+            <thead class="bg-light">
+              <tr>
+                <th class="ps-4">Request</th>
+                <th>Order</th>
+                <th>User</th>
+                <th>Status</th>
+                <th>Reason</th>
+                <th>Date</th>
+                <th class="pe-4 text-end">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="cancel-requests-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script type="module">
+  import { api } from "{{ url_for('static', filename='js/api.js') }}";
+  import { formatCurrency, formatDate, showToast } from "{{ url_for('static', filename='js/utils.js') }}";
+
+  const tabOrders = document.getElementById('tab-orders');
+  const tabCancel = document.getElementById('tab-cancel-requests');
+  const tabs = document.getElementById('admin-orders-tabs');
+  const statusOptions = [
+    'CREATED',
+    'PAID',
+    'SHIPPED',
+    'DELIVERED',
+    'COMPLETED',
+    'AFTER_SALE',
+    'AFTER_SALE_ENDED',
+    'CANCELLED_BY_USER',
+    'CANCELLED_BY_MERCHANT',
+    'CANCELLED_BY_ADMIN'
+  ];
+
+  document.getElementById('refresh-btn').addEventListener('click', () => {
+    const active = tabs.querySelector('.nav-link.active')?.dataset.tab;
+    if (active === 'cancel-requests') loadCancelRequests();
+    else loadOrders();
+  });
+
+  document.getElementById('status-filter').addEventListener('change', loadOrders);
+
+  tabs.querySelectorAll('.nav-link').forEach(btn => {
+    btn.addEventListener('click', () => {
+      tabs.querySelectorAll('.nav-link').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      const t = btn.dataset.tab;
+      if (t === 'cancel-requests') {
+        tabOrders.classList.add('d-none');
+        tabCancel.classList.remove('d-none');
+        loadCancelRequests();
+      } else {
+        tabCancel.classList.add('d-none');
+        tabOrders.classList.remove('d-none');
+        loadOrders();
+      }
+    });
+  });
+
+  document.addEventListener('DOMContentLoaded', () => {
+    loadOrders();
+  });
+
+  async function loadOrders() {
+    try {
+      const status = document.getElementById('status-filter').value;
+      const url = status ? `/admin/orders?status=${encodeURIComponent(status)}` : '/admin/orders';
+      const data = await api.get(url);
+      renderOrders(data.items || []);
+    } catch (e) {
+      showToast('Failed to load orders', 'error');
+    }
+  }
+
+  function renderOrders(items) {
+    const tbody = document.getElementById('orders-body');
+    if (!items.length) {
+      tbody.innerHTML = '<tr><td colspan="7" class="text-center py-5 text-secondary">No orders found</td></tr>';
+      return;
+    }
+    tbody.innerHTML = items.map(o => `
+      <tr>
+        <td class="ps-4 fw-bold">#${o.id}</td>
+        <td><span class="badge bg-secondary">${o.status}</span></td>
+        <td>${formatCurrency(o.subtotal_amount)}</td>
+        <td class="text-secondary">${o.customer_email || '-'}</td>
+        <td class="text-secondary">${o.merchant_email || '-'}</td>
+        <td class="text-secondary">${formatDate(o.created_at)}</td>
+        <td class="pe-4 text-end">
+          <a class="btn btn-sm btn-outline-primary" href="/orders/${o.id}" target="_blank">View</a>
+          <button class="btn btn-sm btn-outline-danger ms-2" onclick="voidOrder(${o.id})">Void</button>
+          <div class="d-inline-flex align-items-center ms-2">
+            <select class="form-select form-select-sm" id="order-status-${o.id}" aria-label="Set status for order #${o.id}">
+              ${statusOptions.map(s => `<option value="${s}" ${s === o.status ? 'selected' : ''}>${s}</option>`).join('')}
+            </select>
+            <button class="btn btn-sm btn-outline-secondary ms-2" onclick="updateOrderStatus(${o.id})">Set</button>
+          </div>
+        </td>
+      </tr>
+    `).join('');
+    window.voidOrder = voidOrder;
+    window.updateOrderStatus = updateOrderStatus;
+  }
+
+  async function voidOrder(orderId) {
+    if (!confirm(`Void order #${orderId}? This will cancel and/or refund depending on status.`)) return;
+    const reason = prompt('Reason (optional):', 'Admin void');
+    try {
+      await api.request(`/merchant/orders/${orderId}`, { method: 'DELETE', body: { reason }, showLoading: true });
+      showToast('Order voided', 'success');
+      loadOrders();
+    } catch (e) {
+      showToast(e.message || 'Failed to void', 'error');
+    }
+  }
+
+  async function loadCancelRequests() {
+    try {
+      const data = await api.get('/api/merchant/cancel-requests?status=PENDING');
+      renderCancelRequests(data.items || []);
+    } catch (e) {
+      showToast('Failed to load cancel requests', 'error');
+    }
+  }
+
+  function renderCancelRequests(items) {
+    const tbody = document.getElementById('cancel-requests-body');
+    if (!items.length) {
+      tbody.innerHTML = '<tr><td colspan="7" class="text-center py-5 text-secondary">No pending requests</td></tr>';
+      return;
+    }
+    tbody.innerHTML = items.map(r => `
+      <tr>
+        <td class="ps-4 fw-bold">#${r.id}</td>
+        <td class="fw-semibold">#${r.merchant_order_id}</td>
+        <td class="text-secondary">${r.user_id}</td>
+        <td><span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle">${r.status}</span></td>
+        <td class="text-secondary">${r.reason || '-'}</td>
+        <td class="text-secondary">${formatDate(r.created_at)}</td>
+        <td class="pe-4 text-end">
+          <button class="btn btn-sm btn-outline-success" onclick="approveReq(${r.id})">Approve</button>
+          <button class="btn btn-sm btn-outline-danger ms-2" onclick="rejectReq(${r.id})">Reject</button>
+        </td>
+      </tr>
+    `).join('');
+    window.approveReq = approveReq;
+    window.rejectReq = rejectReq;
+  }
+
+  async function approveReq(requestId) {
+    try {
+      await api.post(`/api/merchant/cancel-requests/${requestId}/approve`, { note: 'Approved by admin' }, { showLoading: true });
+      showToast('Approved', 'success');
+      loadCancelRequests();
+      loadOrders();
+    } catch (e) {
+      showToast(e.message || 'Failed to approve', 'error');
+    }
+  }
+
+  async function rejectReq(requestId) {
+    const note = prompt('Optional note:', 'Rejected by admin');
+    try {
+      await api.post(`/api/merchant/cancel-requests/${requestId}/reject`, { note }, { showLoading: true });
+      showToast('Rejected', 'info');
+      loadCancelRequests();
+    } catch (e) {
+      showToast(e.message || 'Failed to reject', 'error');
+    }
+  }
+
+  async function updateOrderStatus(orderId) {
+    const select = document.getElementById(`order-status-${orderId}`);
+    if (!select) return;
+    const next = select.value;
+    if (!confirm(`Set order #${orderId} to ${next}?`)) return;
+    const note = prompt('Optional note:', 'Admin override');
+    try {
+      await api.patch(`/api/admin/orders/${orderId}/status`, { status: next, note }, { showLoading: true });
+      showToast('Status updated', 'success');
+      loadOrders();
+    } catch (e) {
+      showToast(e.message || 'Failed to update status', 'error');
+    }
+  }
+</script>
+{% endblock %}

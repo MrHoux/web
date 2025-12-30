@@ -1,0 +1,480 @@
+{% extends "base.html" %}
+
+{% block title %}Merchant Dashboard{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+  <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
+    <div>
+      <h2 class="fw-bold mb-1">Dashboard</h2>
+      <p class="text-secondary mb-0">Monitor orders, shipments, and cancellation requests in one place.</p>
+    </div>
+    <div class="d-flex gap-2">
+      <button class="btn btn-outline-dark" type="button" onclick="refreshDashboard()" id="btn-refresh">
+        <i class="bi bi-arrow-clockwise me-2"></i>Refresh
+      </button>
+      <a class="btn btn-outline-primary" href="{{ url_for('merchant.list_products') }}"><i class="bi bi-box-seam me-2"></i>Products</a>
+      <a class="btn btn-primary" href="{{ url_for('merchant.list_merchant_orders') }}"><i class="bi bi-truck me-2"></i>Orders</a>
+    </div>
+  </div>
+
+  <!-- KPI cards -->
+  <div class="row g-4 mb-4">
+    <div class="col-md-4 col-lg-2">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body p-4">
+          <div class="text-secondary small fw-semibold text-uppercase">Total</div>
+          <div class="fw-bold fs-3" id="kpi-total">{{ stats.total_orders }}</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4 col-lg-2">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body p-4">
+          <div class="text-secondary small fw-semibold text-uppercase">To ship</div>
+          <div class="fw-bold fs-3 text-primary" id="kpi-to-ship">{{ stats.paid_to_ship }}</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4 col-lg-2">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body p-4">
+          <div class="text-secondary small fw-semibold text-uppercase">In transit</div>
+          <div class="fw-bold fs-3" id="kpi-in-transit">{{ stats.in_transit }}</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4 col-lg-2">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body p-4">
+          <div class="text-secondary small fw-semibold text-uppercase">Delivered</div>
+          <div class="fw-bold fs-3" id="kpi-delivered">{{ stats.delivered }}</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4 col-lg-2">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body p-4">
+          <div class="text-secondary small fw-semibold text-uppercase">Cancel req</div>
+          <div class="fw-bold fs-3 text-dark" id="kpi-cancel-req">{{ stats.pending_cancel_requests }}</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4 col-lg-2">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body p-4">
+          <div class="text-secondary small fw-semibold text-uppercase">After-sales</div>
+          <div class="fw-bold fs-3 text-dark" id="kpi-after-sales">{{ stats.pending_after_sales }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-4">
+    <!-- To ship -->
+    <div class="col-lg-7">
+      <div class="card border-0 shadow-sm">
+        <div class="card-body p-4">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="fw-bold mb-0">Orders to ship</h5>
+            <a href="{{ url_for('merchant.list_merchant_orders') }}" class="text-decoration-none fw-semibold">View all</a>
+          </div>
+          <div id="panel-to-ship">
+            {% if recent_to_ship|length == 0 %}
+              <div class="text-secondary">No paid orders waiting for shipment.</div>
+            {% else %}
+              <div class="table-responsive">
+                <table class="table align-middle mb-0">
+                  <thead class="bg-light">
+                    <tr>
+                      <th>Order</th>
+                      <th>Total</th>
+                      <th class="text-end">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for o in recent_to_ship %}
+                    <tr>
+                      <td class="fw-bold">#{{ o.id }}</td>
+                      <td>${{ "%.2f"|format(o.subtotal_amount) }}</td>
+                      <td class="text-end">
+                        <button class="btn btn-sm btn-primary" onclick="openShipModal({{ o.id }})"><i class="bi bi-truck me-1"></i>Ship</button>
+                      </td>
+                    </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Cancel requests -->
+    <div class="col-lg-5">
+      <div class="card border-0 shadow-sm">
+        <div class="card-body p-4">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="fw-bold mb-0">Cancellation requests</h5>
+            <span class="badge bg-danger text-white" id="badge-cancel-req">{{ stats.pending_cancel_requests }}</span>
+          </div>
+          <div id="panel-cancel-req">
+            {% if recent_cancel_requests|length == 0 %}
+              <div class="text-secondary">No pending requests.</div>
+            {% else %}
+              <div class="list-group list-group-flush">
+                {% for r in recent_cancel_requests %}
+                  <div class="list-group-item px-0">
+                    <div class="d-flex justify-content-between align-items-start">
+                      <div>
+                        <div class="fw-semibold">Order #{{ r.merchant_order_id }}</div>
+                        <div class="text-secondary small">Reason: {{ r.reason or '—' }}</div>
+                        <div class="text-secondary small">Requested: {{ r.created_at.strftime("%Y-%m-%d %H:%M") }}</div>
+                      </div>
+                      <div class="d-flex gap-2">
+                        <button class="btn btn-sm btn-outline-success" onclick="approveCancel({{ r.id }})">Approve</button>
+                        <button class="btn btn-sm btn-outline-danger" onclick="rejectCancel({{ r.id }})">Reject</button>
+                      </div>
+                    </div>
+                  </div>
+                {% endfor %}
+              </div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- After-sales requests -->
+    <div class="col-lg-12">
+      <div class="card border-0 shadow-sm mt-4">
+        <div class="card-body p-4">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="fw-bold mb-0">After-sales requests</h5>
+            <span class="badge bg-primary text-white" id="badge-after-sales">{{ stats.pending_after_sales }}</span>
+          </div>
+          <div id="panel-after-sales">
+            {% if recent_after_sales|length == 0 %}
+              <div class="text-secondary">No pending after-sales requests.</div>
+            {% else %}
+              <div class="list-group list-group-flush">
+                {% for a in recent_after_sales %}
+                  <div class="list-group-item px-0">
+                    <div class="d-flex justify-content-between align-items-start">
+                      <div>
+                        <div class="fw-semibold">Order #{{ a.merchant_order_id }} · Item #{{ a.order_item_id }}</div>
+                        <div class="text-secondary small">Type: {{ a.type.value }} · Requested: {{ a.created_at.strftime("%Y-%m-%d %H:%M") }}</div>
+                        <div class="text-secondary small">Reason: {{ a.reason or '—' }}</div>
+                      </div>
+                      <div class="d-flex gap-2">
+                        <button class="btn btn-sm btn-outline-success" onclick="approveAfterSale({{ a.id }})">Approve</button>
+                        <button class="btn btn-sm btn-outline-danger" onclick="rejectAfterSale({{ a.id }})">Reject</button>
+                      </div>
+                    </div>
+                  </div>
+                {% endfor %}
+              </div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Returns in transit -->
+    <div class="col-lg-12">
+      <div class="card border-0 shadow-sm mt-4">
+        <div class="card-body p-4">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="fw-bold mb-0">Returns in transit</h5>
+            <span class="badge bg-secondary text-white" id="badge-returns-in-transit">
+              {{ returns_in_transit|length }}
+            </span>
+          </div>
+          <div id="panel-returns-in-transit">
+            {% if returns_in_transit|length == 0 %}
+              <div class="text-secondary">No returns currently in transit.</div>
+            {% else %}
+              <div class="list-group list-group-flush">
+                {% for a in returns_in_transit %}
+                  <div class="list-group-item px-0">
+                    <div class="d-flex justify-content-between align-items-start">
+                      <div>
+                        <div class="fw-semibold">Order #{{ a.merchant_order_id }} · Item #{{ a.order_item_id }}</div>
+                        <div class="text-secondary small">Carrier: {{ a.return_carrier_name or '—' }} · Tracking: {{ a.return_tracking_no or '—' }}</div>
+                        <div class="text-secondary small">Shipped: {{ a.return_shipped_at.strftime("%Y-%m-%d %H:%M") if a.return_shipped_at else '—' }}</div>
+                      </div>
+                      <div class="d-flex gap-2">
+                        <button class="btn btn-sm btn-primary" onclick="markReturnReceived({{ a.id }})">Mark received</button>
+                      </div>
+                    </div>
+                  </div>
+                {% endfor %}
+              </div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Ship Modal -->
+<div class="modal fade" id="shipModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg">
+      <div class="modal-header">
+        <h5 class="modal-title fw-bold">Ship Order</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <form id="ship-form">
+          <input type="hidden" id="ship-order-id">
+          <div class="mb-3">
+            <label class="form-label" for="carrier">Carrier</label>
+            <input type="text" class="form-control" id="carrier" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label" for="tracking">Tracking Number</label>
+            <input type="text" class="form-control" id="tracking" required>
+          </div>
+          <button type="submit" class="btn btn-primary w-100">Confirm Shipment</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script type="module">
+  import { api } from "{{ url_for('static', filename='js/api.js') }}";
+  import { showToast, formatDate } from "{{ url_for('static', filename='js/utils.js') }}";
+
+  let shipModal;
+
+  document.addEventListener('DOMContentLoaded', () => {
+    shipModal = new bootstrap.Modal(document.getElementById('shipModal'));
+    document.getElementById('ship-form').addEventListener('submit', handleShip);
+  });
+
+  window.openShipModal = (id) => {
+    document.getElementById('ship-order-id').value = id;
+    document.getElementById('carrier').value = '';
+    document.getElementById('tracking').value = '';
+    shipModal.show();
+  };
+
+  async function handleShip(e) {
+    e.preventDefault();
+    const id = document.getElementById('ship-order-id').value;
+    const data = {
+      carrier_name: document.getElementById('carrier').value,
+      tracking_no: document.getElementById('tracking').value
+    };
+    try {
+      await api.post(`/api/merchant/orders/${id}/ship`, data, { showLoading: true });
+      shipModal.hide();
+      showToast('Order shipped', 'success');
+      await refreshDashboard();
+    } catch (error) {
+      showToast(error.message || 'Failed to ship', 'error');
+    }
+  }
+
+  window.approveCancel = async (requestId) => {
+    try {
+      await api.post(`/api/merchant/cancel-requests/${requestId}/approve`, { note: 'Approved' }, { showLoading: true });
+      showToast('Approved', 'success');
+      await refreshDashboard();
+    } catch (error) {
+      showToast(error.message || 'Failed to approve', 'error');
+    }
+  };
+
+  window.rejectCancel = async (requestId) => {
+    const note = prompt('Optional note to customer:', 'Rejected');
+    try {
+      await api.post(`/api/merchant/cancel-requests/${requestId}/reject`, { note }, { showLoading: true });
+      showToast('Rejected', 'info');
+      await refreshDashboard();
+    } catch (error) {
+      showToast(error.message || 'Failed to reject', 'error');
+    }
+  };
+
+  window.refreshDashboard = async () => {
+    const btn = document.getElementById('btn-refresh');
+    try {
+      if (btn) btn.disabled = true;
+      const data = await api.get('/api/merchant/dashboard', { showLoading: true });
+
+      // KPIs
+      const s = data.stats || {};
+      const setText = (id, v) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = String(v ?? 0);
+      };
+      setText('kpi-total', s.total_orders);
+      setText('kpi-to-ship', s.paid_to_ship);
+      setText('kpi-in-transit', s.in_transit);
+      setText('kpi-delivered', s.delivered);
+      setText('kpi-cancel-req', s.pending_cancel_requests);
+      setText('badge-cancel-req', s.pending_cancel_requests);
+      setText('kpi-after-sales', s.pending_after_sales);
+      setText('badge-after-sales', s.pending_after_sales);
+
+      // Panels
+      const panelToShip = document.getElementById('panel-to-ship');
+      if (panelToShip) {
+        const items = data.recent_to_ship || [];
+        if (!items.length) {
+          panelToShip.innerHTML = '<div class="text-secondary">No paid orders waiting for shipment.</div>';
+        } else {
+          panelToShip.innerHTML = `
+            <div class="table-responsive">
+              <table class="table align-middle mb-0">
+                <thead class="bg-light">
+                  <tr><th>Order</th><th>Total</th><th class="text-end">Action</th></tr>
+                </thead>
+                <tbody>
+                  ${items.map(o => `
+                    <tr>
+                      <td class="fw-bold">#${o.id}</td>
+                      <td>$${Number(o.subtotal_amount).toFixed(2)}</td>
+                      <td class="text-end">
+                        <button class="btn btn-sm btn-primary" onclick="openShipModal(${o.id})">
+                          <i class="bi bi-truck me-1"></i>Ship
+                        </button>
+                      </td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </div>
+          `;
+        }
+      }
+
+      const panelCancel = document.getElementById('panel-cancel-req');
+      if (panelCancel) {
+        const reqs = data.recent_cancel_requests || [];
+        if (!reqs.length) {
+          panelCancel.innerHTML = '<div class="text-secondary">No pending requests.</div>';
+        } else {
+          panelCancel.innerHTML = `
+            <div class="list-group list-group-flush">
+              ${reqs.map(r => `
+                <div class="list-group-item px-0">
+                  <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                      <div class="fw-semibold">Order #${r.merchant_order_id}</div>
+                      <div class="text-secondary small">Reason: ${r.reason || '—'}</div>
+                      <div class="text-secondary small">Requested: ${formatDate(r.created_at)}</div>
+                    </div>
+                    <div class="d-flex gap-2">
+                      <button class="btn btn-sm btn-outline-success" onclick="approveCancel(${r.id})">Approve</button>
+                      <button class="btn btn-sm btn-outline-danger" onclick="rejectCancel(${r.id})">Reject</button>
+                    </div>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          `;
+        }
+      }
+
+      const panelAfter = document.getElementById('panel-after-sales');
+      if (panelAfter) {
+        const reqs = data.recent_after_sales || [];
+        if (!reqs.length) {
+          panelAfter.innerHTML = '<div class="text-secondary">No pending after-sales requests.</div>';
+        } else {
+          panelAfter.innerHTML = `
+            <div class="list-group list-group-flush">
+              ${reqs.map(a => `
+                <div class="list-group-item px-0">
+                  <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                      <div class="fw-semibold">Order #${a.merchant_order_id} · Item #${a.order_item_id}</div>
+                      <div class="text-secondary small">Type: ${a.type} · Requested: ${new Date(a.created_at).toLocaleString()}</div>
+                    </div>
+                    <div class="d-flex gap-2">
+                      <button class="btn btn-sm btn-outline-success" onclick="approveAfterSale(${a.id})">Approve</button>
+                      <button class="btn btn-sm btn-outline-danger" onclick="rejectAfterSale(${a.id})">Reject</button>
+                    </div>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          `;
+        }
+      }
+
+      const panelReturns = document.getElementById('panel-returns-in-transit');
+      if (panelReturns) {
+        const items = data.returns_in_transit || [];
+        const badge = document.getElementById('badge-returns-in-transit');
+        if (badge) badge.textContent = String(items.length);
+        if (!items.length) {
+          panelReturns.innerHTML = '<div class="text-secondary">No returns currently in transit.</div>';
+        } else {
+          panelReturns.innerHTML = `
+            <div class="list-group list-group-flush">
+              ${items.map(a => `
+                <div class="list-group-item px-0">
+                  <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                      <div class="fw-semibold">Order #${a.merchant_order_id} · Item #${a.order_item_id}</div>
+                      <div class="text-secondary small">Carrier: ${a.carrier_name || '—'} · Tracking: ${a.tracking_no || '—'}</div>
+                      <div class="text-secondary small">Shipped: ${a.shipped_at ? formatDate(a.shipped_at) : '—'}</div>
+                    </div>
+                    <div class="d-flex gap-2">
+                      <button class="btn btn-sm btn-primary" onclick="markReturnReceived(${a.id})">Mark received</button>
+                    </div>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          `;
+        }
+      }
+    } catch (e) {
+      showToast(e.message || 'Failed to refresh dashboard', 'error');
+    } finally {
+      if (btn) btn.disabled = false;
+    }
+  };
+
+  window.approveAfterSale = async (afterSaleId) => {
+    try {
+      await api.patch(`/api/merchant/after-sales/${afterSaleId}`, { action: 'APPROVE' }, { showLoading: true });
+      showToast('Approved', 'success');
+      await refreshDashboard();
+    } catch (error) {
+      showToast(error.message || 'Failed to approve', 'error');
+    }
+  };
+
+  window.rejectAfterSale = async (afterSaleId) => {
+    try {
+      await api.patch(`/api/merchant/after-sales/${afterSaleId}`, { action: 'REJECT' }, { showLoading: true });
+      showToast('Rejected', 'info');
+      await refreshDashboard();
+    } catch (error) {
+      showToast(error.message || 'Failed to reject', 'error');
+    }
+  };
+
+  window.markReturnReceived = async (afterSaleId) => {
+    if (!confirm('Confirm you have received the returned package?')) return;
+    try {
+      await api.post(`/api/merchant/after-sales/${afterSaleId}/receive-return`, {}, { showLoading: true });
+      showToast('Return received', 'success');
+      await refreshDashboard();
+    } catch (error) {
+      showToast(error.message || 'Failed to mark return received', 'error');
+    }
+  };
+</script>
+{% endblock %}

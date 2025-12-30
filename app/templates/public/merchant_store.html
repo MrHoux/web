@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+
+{% block title %}Storefront{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+  <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
+    <div>
+      <h2 class="fw-bold mb-1">
+        <i class="bi bi-shop me-2 text-primary"></i>
+        {{ profile.shop_name if profile else ('Merchant #' ~ merchant.id) }}
+      </h2>
+      <p class="text-secondary mb-0">{{ profile.description if profile and profile.description else 'Official storefront. Browse their full NovaMart catalog.' }}</p>
+    </div>
+    <div>
+      {% if current_user.is_authenticated and current_user.role.value == 'CUSTOMER' %}
+        <button class="btn btn-outline-primary me-2" type="button" onclick="ShopWave.openMerchantChat({{ merchant.id }})" aria-label="Chat with merchant">
+          <i class="bi bi-chat-dots me-2"></i> Chat
+        </button>
+      {% endif %}
+      <a class="btn btn-outline-primary" href="{{ url_for('products.product_list') }}">
+        <i class="bi bi-grid me-2"></i> Browse all products
+      </a>
+    </div>
+  </div>
+
+  {% if products|length == 0 %}
+    <div class="text-center py-5 bg-light rounded-3">
+      <p class="text-secondary mb-0">No products yet. Check back soon.</p>
+    </div>
+  {% else %}
+    <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 g-4">
+      {% for product in products %}
+        <div class="col">
+          <div class="card product-card h-100 border-0 shadow-sm">
+            <div class="position-relative">
+              <img src="{{ url_for('static', filename=product.image_path) if product.image_path else url_for('static', filename='images/placeholder.png') }}" class="card-img-top" alt="{{ product.title }}">
+              {% if current_user.is_authenticated and current_user.role.value == 'CUSTOMER' %}
+              <button class="btn btn-light btn-sm rounded-circle position-absolute top-0 end-0 m-3 shadow-sm wishlist-btn"
+                      data-product-id="{{ product.id }}"
+                      aria-label="Toggle wishlist">
+                <i class="bi bi-heart"></i>
+              </button>
+              {% endif %}
+            </div>
+            <div class="card-body p-3">
+              <h6 class="fw-bold mb-1 text-dark">{{ product.title }}</h6>
+              {% set rating = rating_summary.get(product.id) if rating_summary else None %}
+              {% include "components/rating_badge.html" %}
+              <div class="price text-primary fw-bold mt-2 mb-1">${{ "%.2f"|format(product.price) }}</div>
+              <div class="text-secondary small mb-3">
+                {% if product.stock == 0 %}Out of stock{% else %}Stock: {{ product.stock }}{% endif %}
+              </div>
+              <div class="d-grid gap-2">
+                <a class="btn btn-outline-primary btn-sm" href="{{ url_for('products.product_detail', product_id=product.id) }}">View</a>
+                {% if current_user.is_authenticated and current_user.role.value == 'CUSTOMER' %}
+                  <button class="btn btn-primary btn-sm add-cart-btn" data-product-id="{{ product.id }}" {{ 'disabled' if product.stock == 0 }}>Add to cart</button>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+{% if current_user.is_authenticated and current_user.role.value == 'CUSTOMER' %}
+<script type="module">
+  import { api } from "{{ url_for('static', filename='js/api.js') }}";
+  import { showToast, updateCartBadge } from "{{ url_for('static', filename='js/utils.js') }}";
+  import { animateHeart } from "{{ url_for('static', filename='js/interactions.js') }}";
+  import { initWishlistButtons } from "{{ url_for('static', filename='js/wishlist.js') }}";
+
+  document.addEventListener('DOMContentLoaded', () => {
+    initWishlistButtons(document.querySelectorAll('.wishlist-btn'), api, { animateHeart });
+    document.querySelectorAll('.add-cart-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const productId = parseInt(btn.dataset.productId);
+        try {
+          await api.post('/api/cart/items', { product_id: productId, quantity: 1 }, { showLoading: false });
+          showToast('Added to cart', 'success');
+          const cartData = await api.get("{{ url_for('cart.get_cart') }}", { showLoading: false });
+          updateCartBadge(cartData.total_items);
+        } catch (e) {
+          showToast(e.message || 'Failed to add', 'error');
+        }
+      });
+    });
+  });
+</script>
+{% endif %}
+{% endblock %}

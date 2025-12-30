@@ -1,0 +1,626 @@
+{% extends "base.html" %}
+
+{% block title %}Order #{{ order_id }}{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="checkout-steps mb-4" id="order-steps" aria-label="Order progress">
+        <div class="step-item" id="order-step-shipping">
+            <div class="step-circle">1</div>
+            <span class="step-label">Shipping</span>
+        </div>
+        <div class="step-item" id="order-step-payment">
+            <div class="step-circle">2</div>
+            <span class="step-label">Payment</span>
+        </div>
+        <div class="step-item" id="order-step-confirmation">
+            <div class="step-circle">3</div>
+            <span class="step-label">Confirmation</span>
+        </div>
+    </div>
+
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold mb-1">Order #<span id="order-id">...</span></h2>
+            <p class="text-body mb-0">Placed on <span id="order-date" class="fw-semibold">...</span></p>
+        </div>
+        <div>
+            <span class="badge bg-secondary fs-6" id="order-status-badge">Loading...</span>
+        </div>
+    </div>
+
+    <!-- Countdown Alert (Hidden by default) -->
+    <div id="cancel-window-alert" class="alert alert-warning d-none align-items-center" role="alert">
+        <i class="bi bi-clock-history me-2 fs-5"></i>
+        <div id="cancel-window-message">
+            Please pay within <span id="countdown-timer" class="fw-bold">00:00</span> (unpaid orders will be auto-cancelled)
+        </div>
+        <button class="btn btn-sm btn-danger ms-auto" id="cancel-btn">Cancel Order</button>
+    </div>
+
+    <div class="row g-5">
+        <!-- Order Items -->
+        <div class="col-lg-8">
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-white py-3">
+                    <h5 class="mb-0 fw-bold">Items</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table align-middle mb-0">
+                            <thead class="bg-light">
+                                <tr>
+                                    <th class="ps-4">Product</th>
+                                    <th>Price</th>
+                                    <th>Qty</th>
+                                    <th class="pe-4 text-end">Total</th>
+                                </tr>
+                            </thead>
+                            <tbody id="order-items-body">
+                                <!-- Loaded via JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Shipping Info -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-white py-3">
+                    <h5 class="mb-0 fw-bold">Shipping Information</h5>
+                </div>
+                <div class="card-body p-4" id="shipping-info">
+                    <!-- Loaded via JS -->
+                </div>
+            </div>
+            
+            <!-- Tracking Info (if shipped) -->
+            <div class="card border-0 shadow-sm mb-4 d-none" id="tracking-card">
+                <div class="card-header bg-white py-3">
+                    <h5 class="mb-0 fw-bold">Tracking Information</h5>
+                </div>
+                <div class="card-body p-4" id="tracking-info">
+                    <!-- Loaded via JS -->
+                </div>
+            </div>
+
+            <!-- After-sales (Return/Refund) -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-white py-3">
+                    <h5 class="mb-0 fw-bold">Return / Refund</h5>
+                </div>
+                <div class="card-body p-4" id="after-sales-panel">
+                    <div class="text-secondary">Loading...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="col-lg-4">
+            <!-- Payment -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-body p-4">
+                    <h5 class="fw-bold mb-3">Payment</h5>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="text-secondary">Subtotal</span>
+                        <span class="fw-bold" id="order-subtotal">...</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="text-secondary">Shipping</span>
+                        <span class="text-success">Free</span>
+                    </div>
+                    <hr>
+                    <div class="d-flex justify-content-between mb-4">
+                        <span class="fw-bold fs-5">Total</span>
+                        <span class="fw-bold fs-5 text-primary" id="order-total">...</span>
+                    </div>
+                    
+                    <div id="action-buttons">
+                        <!-- Buttons injected via JS based on status -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Support -->
+            <div class="card border-0 shadow-sm bg-light">
+                <div class="card-body p-4">
+                    <h6 class="fw-bold mb-3">Need a hand?</h6>
+                    <p class="small text-secondary mb-3">New to NovaMart? Our support team can walk you through your order.</p>
+                    <button class="btn btn-primary btn-sm w-100" type="button" onclick="ShopWave.openSupportChat()">
+                        Contact Support
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script type="module">
+    import { api } from "{{ url_for('static', filename='js/api.js') }}";
+    import { formatCurrency, formatDate, showToast } from "{{ url_for('static', filename='js/utils.js') }}";
+
+    const orderId = {{ order_id }};
+    const isAdminView = document.body.dataset.role === 'ADMIN';
+    let cancelInterval;
+    let orderGroupId;
+
+    document.addEventListener('DOMContentLoaded', loadOrderDetail);
+
+    async function loadOrderDetail() {
+        try {
+            const order = await api.get(`/orders/${orderId}`);
+            renderOrder(order);
+            
+            // Check countdown window for CREATED (payment) or PAID (post-pay direct cancel)
+            if (!isAdminView && (order.status === 'CREATED' || order.status === 'PAID')) {
+                checkCancelWindow(order.status);
+            }
+        } catch (error) {
+            showToast('Failed to load order details', 'error');
+        }
+    }
+
+    function renderOrder(order) {
+        renderSteps(order);
+        // Header
+        document.getElementById('order-id').textContent = order.id;
+        document.getElementById('order-date').textContent = formatDate(order.created_at);
+        
+        const badge = document.getElementById('order-status-badge');
+        badge.textContent = order.status;
+        badge.className = `badge fs-6 ${getStatusClass(order.status)}`;
+
+        const placeholder = "{{ url_for('static', filename='images/placeholder.png') }}";
+
+        // Items
+        const tbody = document.getElementById('order-items-body');
+        let itemsHtml = '';
+        order.items.forEach(item => {
+            itemsHtml += `
+                <tr>
+                    <td class="ps-4">
+                        <div class="d-flex align-items-center">
+                            <img src="${item.product_image_url || placeholder}" class="rounded me-3" style="width: 50px; height: 50px; object-fit: contain;" alt="${item.product_title || 'Product'}">
+                            <div>
+                                <a href="/p/${item.product_id}" class="text-decoration-none text-dark fw-semibold">${item.product_title}</a>
+                            </div>
+                        </div>
+                    </td>
+                    <td>${formatCurrency(item.unit_price)}</td>
+                    <td>${item.quantity}</td>
+                    <td class="pe-4 text-end fw-bold">${formatCurrency(item.unit_price * item.quantity)}</td>
+                </tr>
+            `;
+        });
+        tbody.innerHTML = itemsHtml;
+
+        // Shipping
+        if (order.shipping) {
+            document.getElementById('shipping-info').innerHTML = `
+                <p class="mb-1 fw-bold">${order.shipping.recipient_name}</p>
+                <p class="mb-1 text-secondary">${order.shipping.phone}</p>
+                <p class="mb-0 text-secondary">${order.shipping.full_address}</p>
+            `;
+        }
+
+        // Totals
+        document.getElementById('order-subtotal').textContent = formatCurrency(order.subtotal_amount);
+        document.getElementById('order-total').textContent = formatCurrency(order.subtotal_amount);
+
+        orderGroupId = order.order_group_id;
+
+        // Actions
+        renderActionButtons(order);
+        renderAfterSales(order);
+
+        // Tracking
+        if (order.shipment) {
+            document.getElementById('tracking-card').classList.remove('d-none');
+            document.getElementById('tracking-info').innerHTML = `
+                <div class="d-flex justify-content-between mb-2">
+                    <span>Carrier:</span>
+                    <span class="fw-bold">${order.shipment.carrier_name}</span>
+                </div>
+                <div class="d-flex justify-content-between">
+                    <span>Tracking No:</span>
+                    <span class="font-monospace">${order.shipment.tracking_no}</span>
+                </div>
+            `;
+        }
+    }
+
+    function renderSteps(order) {
+        const shipping = document.getElementById('order-step-shipping');
+        const payment = document.getElementById('order-step-payment');
+        const confirmation = document.getElementById('order-step-confirmation');
+        if (!shipping || !payment || !confirmation) return;
+
+        [shipping, payment, confirmation].forEach(el => {
+            el.classList.remove('active', 'completed');
+        });
+
+        const status = order.status;
+        const paymentStatus = order.payment?.status || '';
+        const paymentDone = ['SUCCESS', 'REFUNDED'].includes(paymentStatus) ||
+            ['PAID', 'SHIPPED', 'DELIVERED', 'COMPLETED', 'AFTER_SALE', 'AFTER_SALE_ENDED'].includes(status);
+        const confirmationDone = ['COMPLETED', 'AFTER_SALE', 'AFTER_SALE_ENDED'].includes(status);
+
+        shipping.classList.add('completed');
+
+        if (paymentDone) {
+            payment.classList.add('completed');
+        } else {
+            payment.classList.add('active');
+        }
+
+        if (confirmationDone) {
+            confirmation.classList.add('completed');
+        } else if (paymentDone) {
+            confirmation.classList.add('active');
+        }
+    }
+
+    function renderActionButtons(order) {
+        const container = document.getElementById('action-buttons');
+        let html = '';
+
+        if (isAdminView) {
+            container.innerHTML = '<div class="alert alert-secondary mb-0">Admin view only.</div>';
+            return;
+        }
+
+        if (order.status === 'CREATED') {
+            html += `<button class="btn btn-success w-100 mb-2 shadow-sm" id="pay-btn">Pay All Items</button>`;
+            html += `<button class="btn btn-outline-danger w-100 mb-2" id="cancel-direct-btn">Cancel Order</button>`;
+        } else if (order.status === 'EXPIRED') {
+            html += `<div class="alert alert-secondary mb-0">Order expired (unpaid).</div>`;
+        } else if (order.status === 'CANCEL_REQUEST_PENDING') {
+            html += `<div class="alert alert-dark mb-0">Cancellation request pending merchant approval.</div>`;
+        } else if (order.status === 'DELIVERED') {
+            html += `<button class="btn btn-primary w-100 mb-2 shadow-sm" id="confirm-btn">Confirm Receipt</button>`;
+        } else if (order.status === 'PAID') {
+            html += `<button class="btn btn-outline-danger w-100 mb-2" id="cancel-direct-btn">Cancel / Request Cancel</button>`;
+        } else if (order.status === 'AFTER_SALE') {
+            html += `<div class="alert alert-info mb-2">After-sales in progress. Please check the Return / Refund section below.</div>`;
+            html += `<button class="btn btn-outline-secondary w-100 mb-2" id="after-sale-btn">Request Return/Refund</button>`;
+        } else if (order.status === 'AFTER_SALE_ENDED') {
+            html += `<div class="alert alert-secondary mb-0">After-sales finished.</div>`;
+        } else if (order.status === 'COMPLETED') {
+            html += `<button class="btn btn-outline-secondary w-100 mb-2" id="after-sale-btn">Request Return/Refund</button>`;
+        }
+
+        container.innerHTML = html;
+
+        // Bind events
+        const payBtn = document.getElementById('pay-btn');
+        if (payBtn) payBtn.onclick = handlePay;
+
+        const confirmBtn = document.getElementById('confirm-btn');
+        if (confirmBtn) confirmBtn.onclick = handleConfirmReceipt;
+
+        const cancelDirectBtn = document.getElementById('cancel-direct-btn');
+        if (cancelDirectBtn) cancelDirectBtn.onclick = handleCancel;
+
+        const afterSaleBtn = document.getElementById('after-sale-btn');
+        if (afterSaleBtn) {
+            afterSaleBtn.onclick = () => {
+                window.openAfterSaleModal(order);
+            };
+        }
+    }
+
+    function renderAfterSales(order) {
+        const host = document.getElementById('after-sales-panel');
+        if (!host) return;
+
+        const list = order.after_sales || [];
+        if (!list.length) {
+            host.innerHTML = `<div class="text-secondary">No return/refund requests.</div>`;
+            return;
+        }
+
+        const statusBadge = (s) => {
+            const map = {
+                'REQUESTED': 'bg-warning-subtle text-warning-emphasis border border-warning-subtle',
+                'MERCHANT_APPROVED': 'bg-info-subtle text-info-emphasis border border-info-subtle',
+                'MERCHANT_REJECTED': 'bg-danger-subtle text-danger border border-danger-subtle',
+                'IN_PROGRESS': 'bg-primary-subtle text-primary border border-primary-subtle',
+                'CLOSED': 'status-after-sale-closed'
+            };
+            return map[s] || 'bg-secondary-subtle text-secondary border border-secondary-subtle';
+        };
+
+        host.innerHTML = `
+            <div class="list-group list-group-flush">
+                ${list.map(a => {
+                    const item = (order.items || []).find(i => i.id === a.order_item_id);
+                    const title = item ? item.product_title : `Item #${a.order_item_id}`;
+                    const typeLabel = a.type === 'RETURN' ? 'Return' : (a.type === 'REFUND_ONLY' ? 'Refund' : a.type);
+                    const canShipReturn = !isAdminView && a.type === 'RETURN' && a.status === 'MERCHANT_APPROVED';
+                    const returnInfo = a.return ? `
+                        <div class="small text-secondary mt-1">
+                            Return: ${a.return.carrier_name || '—'} · ${a.return.tracking_no || '—'} · ${a.return.shipping_status || '—'}
+                        </div>
+                    ` : '';
+                    const note = a.resolution_note ? `<div class="small text-secondary mt-1">Note: ${a.resolution_note}</div>` : '';
+                    const reason = a.reason ? `<div class="small text-secondary mt-1">Reason: ${a.reason}</div>` : '';
+
+                    return `
+                        <div class="list-group-item px-0">
+                            <div class="d-flex justify-content-between align-items-start gap-3">
+                                <div>
+                                    <div class="fw-semibold">${title} <span class="badge ${statusBadge(a.status)} ms-2">${a.status}</span></div>
+                                    <div class="small text-body">${typeLabel} · created ${formatDate(a.created_at)}</div>
+                                    ${reason}
+                                    ${note}
+                                    ${returnInfo}
+                                </div>
+                                <div class="d-flex flex-column gap-2">
+                                    ${canShipReturn ? `<button class="btn btn-sm btn-primary" type="button" onclick="openReturnShipModal(${a.id})">Ship return</button>` : ''}
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }).join('')}
+            </div>
+        `;
+    }
+
+    function ensureAfterSaleModal() {
+        if (document.getElementById('afterSaleModal')) return;
+        const el = document.createElement('div');
+        el.innerHTML = `
+            <div class="modal fade" id="afterSaleModal" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content border-0 shadow-lg">
+                        <div class="modal-header">
+                            <h5 class="modal-title fw-bold">Request Return/Refund</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="mb-3">
+                                <label class="form-label" for="after-sale-item">Item</label>
+                                <select class="form-select" id="after-sale-item"></select>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label" for="after-sale-type">Type</label>
+                                <select class="form-select" id="after-sale-type">
+                                    <option value="REFUND_ONLY">Refund</option>
+                                    <option value="RETURN">Return</option>
+                                </select>
+                                <div class="form-text text-secondary">Refund: merchant approval required, then success. Return: merchant approval required, then you ship back.</div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label" for="after-sale-reason">Reason (optional)</label>
+                                <textarea class="form-control" id="after-sale-reason" rows="3" placeholder="Tell the merchant why you want to return/refund"></textarea>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                            <button type="button" class="btn btn-primary" id="after-sale-submit">Submit</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(el.firstElementChild);
+    }
+
+    window.openAfterSaleModal = (order) => {
+        ensureAfterSaleModal();
+        const modalEl = document.getElementById('afterSaleModal');
+        const sel = document.getElementById('after-sale-item');
+        const submit = document.getElementById('after-sale-submit');
+        const typeEl = document.getElementById('after-sale-type');
+        const reasonEl = document.getElementById('after-sale-reason');
+
+        const openItemIds = new Set((order.after_sales || [])
+            .filter(a => ['REQUESTED', 'MERCHANT_APPROVED', 'IN_PROGRESS', 'ADMIN_APPROVED'].includes(a.status))
+            .map(a => a.order_item_id));
+
+        const eligible = (order.items || []).filter(i => i.item_status === 'NORMAL' && !openItemIds.has(i.id));
+        if (!eligible.length) {
+            showToast('No eligible items for after-sale (already requested or not normal).', 'info');
+            return;
+        }
+
+        sel.innerHTML = eligible.map(i => `<option value="${i.id}">${i.product_title} (x${i.quantity})</option>`).join('');
+        typeEl.value = 'REFUND_ONLY';
+        reasonEl.value = '';
+
+        submit.onclick = async () => {
+            try {
+                const payload = {
+                    order_item_id: parseInt(sel.value, 10),
+                    type: typeEl.value,
+                    reason: (reasonEl.value || '').trim()
+                };
+                await api.post(`/api/orders/${orderId}/after-sales`, payload, { showLoading: true });
+                bootstrap.Modal.getInstance(modalEl)?.hide();
+                showToast('After-sale request submitted', 'success');
+                await loadOrderDetail();
+            } catch (e) {
+                showToast(e.message || 'Failed to submit request', 'error');
+            }
+        };
+
+        new bootstrap.Modal(modalEl).show();
+    };
+
+    function ensureReturnShipModal() {
+        if (document.getElementById('returnShipModal')) return;
+        const el = document.createElement('div');
+        el.innerHTML = `
+            <div class="modal fade" id="returnShipModal" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content border-0 shadow-lg">
+                        <div class="modal-header">
+                            <h5 class="modal-title fw-bold">Ship Return</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                            <input type="hidden" id="return-after-sale-id" />
+                            <div class="mb-3">
+                                <label class="form-label" for="return-carrier">Carrier</label>
+                                <input type="text" class="form-control" id="return-carrier" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label" for="return-tracking">Tracking Number</label>
+                                <input type="text" class="form-control" id="return-tracking" required>
+                            </div>
+                            <div class="form-text text-secondary">After you ship the return, the merchant will confirm receipt.</div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                            <button type="button" class="btn btn-primary" id="return-ship-submit">Submit</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(el.firstElementChild);
+    }
+
+    window.openReturnShipModal = (afterSaleId) => {
+        ensureReturnShipModal();
+        const modalEl = document.getElementById('returnShipModal');
+        document.getElementById('return-after-sale-id').value = String(afterSaleId);
+        document.getElementById('return-carrier').value = '';
+        document.getElementById('return-tracking').value = '';
+
+        document.getElementById('return-ship-submit').onclick = async () => {
+            const id = document.getElementById('return-after-sale-id').value;
+            const payload = {
+                carrier_name: (document.getElementById('return-carrier').value || '').trim(),
+                tracking_no: (document.getElementById('return-tracking').value || '').trim()
+            };
+            try {
+                await api.post(`/api/after-sales/${id}/return-ship`, payload, { showLoading: true });
+                bootstrap.Modal.getInstance(modalEl)?.hide();
+                showToast('Return shipment submitted', 'success');
+                await loadOrderDetail();
+            } catch (e) {
+                showToast(e.message || 'Failed to submit return shipment', 'error');
+            }
+        };
+
+        new bootstrap.Modal(modalEl).show();
+    };
+
+    async function checkCancelWindow(currentStatus) {
+        try {
+            const data = await api.get(`/api/orders/${orderId}/cancel-window`);
+            if (data.remaining_seconds > 0) {
+                const alert = document.getElementById('cancel-window-alert');
+                const msg = document.getElementById('cancel-window-message');
+                alert.classList.remove('d-none');
+                alert.classList.add('d-flex');
+
+                // Bind cancel button
+                document.getElementById('cancel-btn').onclick = handleCancel;
+
+                // Adjust message depending on window kind
+                if (data.window_kind === 'POSTPAY_CANCEL' && currentStatus === 'PAID') {
+                    msg.innerHTML = `You can cancel directly within <span id="countdown-timer" class="fw-bold">00:00</span> after payment.`;
+                } else {
+                    msg.innerHTML = `Please pay within <span id="countdown-timer" class="fw-bold">00:00</span> (unpaid orders will be auto-cancelled)`;
+                }
+
+                // Setup timer AFTER message rendered (otherwise innerHTML may replace timer span)
+                startTimer(data.remaining_seconds);
+            }
+        } catch (error) {
+            console.error(error);
+        }
+    }
+
+    function startTimer(seconds) {
+        if (cancelInterval) {
+            clearInterval(cancelInterval);
+            cancelInterval = undefined;
+        }
+
+        const timerEl = document.getElementById('countdown-timer');
+        let remaining = seconds;
+
+        updateDisplay();
+        
+        cancelInterval = setInterval(() => {
+            remaining--;
+            if (remaining < 0) {
+                clearInterval(cancelInterval);
+                document.getElementById('cancel-window-alert').classList.add('d-none');
+                document.getElementById('cancel-window-alert').classList.remove('d-flex');
+                // Reload to reflect possible auto-cancellation
+                location.reload();
+                return;
+            }
+            updateDisplay();
+        }, 1000);
+
+        function updateDisplay() {
+            const currentEl = document.getElementById('countdown-timer');
+            const m = Math.floor(remaining / 60).toString().padStart(2, '0');
+            const s = (remaining % 60).toString().padStart(2, '0');
+            const el = currentEl || timerEl;
+            if (el) el.textContent = `${m}:${s}`;
+        }
+    }
+
+    async function handleCancel() {
+        if (!confirm('Are you sure you want to cancel this order?')) return;
+        
+        try {
+            await api.post(`/api/orders/${orderId}/cancel`, {}, { showLoading: true });
+            showToast('Order cancelled', 'success');
+            clearInterval(cancelInterval);
+            location.reload();
+        } catch (error) {
+            showToast(error.message, 'error');
+        }
+    }
+
+    async function handlePay() {
+        try {
+            await api.post(`/api/order-groups/${orderGroupId}/pay`, { method: 'MOCK' }, { showLoading: true });
+            showToast('Payment successful (all items)', 'success');
+            location.reload();
+        } catch (error) {
+            showToast(error.message, 'error');
+        }
+    }
+
+    async function handleConfirmReceipt() {
+        if (!confirm('Confirm you have received the items?')) return;
+        
+        try {
+            await api.post(`/api/orders/${orderId}/confirm-receipt`, {}, { showLoading: true });
+            showToast('Receipt confirmed', 'success');
+            location.reload();
+        } catch (error) {
+            showToast(error.message, 'error');
+        }
+    }
+
+    function getStatusClass(status) {
+        const map = {
+            'CREATED': 'bg-primary text-white',
+            'EXPIRED': 'bg-secondary-subtle text-secondary border border-secondary-subtle',
+            'PAID': 'bg-info-subtle text-info-emphasis border border-info-subtle',
+            'CANCEL_REQUEST_PENDING': 'status-pending',
+            'SHIPPED': 'bg-primary text-white',
+            'DELIVERED': 'status-delivered',
+            'COMPLETED': 'bg-success text-white',
+            'AFTER_SALE': 'bg-info text-white',
+            'AFTER_SALE_ENDED': 'bg-secondary text-white',
+            'CANCELLED_BY_USER': 'status-cancelled',
+            'CANCELLED_BY_MERCHANT': 'status-cancelled',
+            'CANCELLED_BY_ADMIN': 'status-cancelled'
+        };
+        return map[status] || 'bg-secondary text-white';
+    }
+</script>
+{% endblock %}

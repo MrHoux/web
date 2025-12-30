@@ -1,0 +1,393 @@
+{% extends "base.html" %}
+
+{% block title %}{{ product.title }}{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('public.index') }}" class="text-decoration-none">Home</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('products.product_list') }}" class="text-decoration-none">Shop</a></li>
+            {% if categories %}
+            <li class="breadcrumb-item"><a href="{{ url_for('products.category_page', slug=categories[0].slug) }}" class="text-decoration-none">{{ categories[0].name }}</a></li>
+            {% endif %}
+            <li class="breadcrumb-item active" aria-current="page">{{ product.title }}</li>
+        </ol>
+    </nav>
+
+    <!-- Product Main -->
+    <div class="row g-5 mb-5">
+        <!-- Image Gallery -->
+        <div class="col-lg-6">
+            <div class="card border-0 shadow-sm p-4 text-center bg-white h-100 justify-content-center">
+                <img src="{{ url_for('static', filename=product.image_path) if product.image_path else url_for('static', filename='images/placeholder.png') }}" class="img-fluid" alt="{{ product.title }}" style="max-height: 500px; object-fit: contain;">
+            </div>
+        </div>
+
+        <!-- Product Info -->
+        <div class="col-lg-6">
+            <div class="ps-lg-4">
+                <div class="mb-2">
+                    {% for category in categories %}
+                        <span class="badge bg-primary text-white me-1">{{ category.name }}</span>
+                    {% endfor %}
+                </div>
+                <h1 class="fw-bold mb-3 text-primary-dark">{{ product.title }}</h1>
+                <div class="mb-3">
+                    {% set rating = product_rating %}
+                    {% include "components/rating_badge.html" %}
+                </div>
+                <div class="d-flex align-items-center mb-4">
+                    <h2 class="display-6 fw-bold text-primary mb-0 me-3">${{ "%.2f"|format(product.price) }}</h2>
+                    {% if product.stock > 0 %}
+                        <span class="badge bg-success text-white rounded-pill px-3">In Stock ({{ product.stock }})</span>
+                    {% else %}
+                        <span class="badge bg-secondary text-white rounded-pill px-3">Out of Stock</span>
+                    {% endif %}
+                </div>
+
+                <p class="lead text-secondary mb-4">{{ product.description }}</p>
+
+                {% if current_user.is_authenticated and current_user.role.value == 'CUSTOMER' %}
+                <div class="card bg-light border-0 p-4 mb-4">
+                    <div class="d-flex gap-3 align-items-end">
+                        <div style="width: 100px;">
+                            <label for="quantity" class="form-label small fw-bold text-secondary text-uppercase">Quantity</label>
+                            <input type="number" class="form-control" id="quantity" value="1" min="1" max="{{ product.stock }}" {{ 'disabled' if product.stock == 0 }}>
+                        </div>
+                        <button class="btn btn-primary btn-lg flex-grow-1 shadow-sm" id="add-to-cart-btn" {{ 'disabled' if product.stock == 0 }}>
+                            <i class="bi bi-cart-plus me-2"></i> Add to Cart
+                        </button>
+                        <button class="btn btn-outline-secondary btn-lg" id="wishlist-btn" data-product-id="{{ product.id }}" aria-label="Add to Wishlist">
+                            <i class="bi bi-heart"></i>
+                        </button>
+                    </div>
+                </div>
+                {% elif not current_user.is_authenticated %}
+                <div class="alert alert-info shadow-sm" role="alert">
+                    <i class="bi bi-info-circle me-2"></i> Please <a href="{{ url_for('auth.login') }}" class="alert-link">login</a> to purchase this item.
+                </div>
+                {% endif %}
+
+                <!-- Merchant Info -->
+                <div class="border-top pt-4 mt-4">
+                    <small class="text-secondary text-uppercase fw-bold">Sold by</small>
+                    <div class="d-flex align-items-center mt-2">
+                        <div class="bg-primary-light rounded-circle p-2 me-3 text-primary">
+                            <i class="bi bi-shop fs-4"></i>
+                        </div>
+                        <div>
+                            <h6 class="mb-0 fw-bold">
+                                <a class="text-decoration-none" href="{{ url_for('public.merchant_store', merchant_id=product.merchant_id) }}">
+                                    {{ product.merchant.merchant_profile.shop_name if product.merchant and product.merchant.merchant_profile else ('Merchant #' ~ product.merchant_id) }}
+                                </a>
+                            </h6>
+                            <small class="text-muted">Visit store to see more products</small>
+                        </div>
+                        {% if current_user.is_authenticated and current_user.role.value == 'CUSTOMER' %}
+                        <button class="btn btn-outline-primary btn-sm ms-auto" type="button"
+                                onclick="ShopWave.openMerchantChat({{ product.merchant_id }})"
+                                aria-label="Chat with merchant">
+                            <i class="bi bi-chat-dots"></i>
+                        </button>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Reviews Section -->
+    <div class="row mb-5">
+        <div class="col-12">
+            <div class="d-flex align-items-center justify-content-between border-bottom pb-3 mb-4">
+                <h3 class="fw-bold mb-0">Customer Reviews</h3>
+                {% if current_user.is_authenticated and current_user.role.value == 'CUSTOMER' %}
+                    {% if can_review %}
+                <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#reviewModal">
+                    Write a Review
+                </button>
+                    {% else %}
+                        <span class="text-secondary small">Purchase required to review</span>
+                    {% endif %}
+                {% endif %}
+            </div>
+
+            <div id="reviews-container">
+                {% if reviews %}
+                    {% for review in reviews %}
+                    <div class="card border-0 shadow-sm mb-3">
+                        <div class="card-body p-4">
+                            <div class="d-flex justify-content-between mb-3">
+                                <div class="d-flex align-items-center">
+                                    <div class="bg-light rounded-circle p-2 me-3 text-secondary">
+                                        <i class="bi bi-person fs-5"></i>
+                                    </div>
+                                    <div>
+                                        <h6 class="mb-0 fw-bold">User #{{ review.user_id }}</h6>
+                                        <div class="text-warning small">
+                                            {% for i in range(review.rating) %}<i class="bi bi-star-fill"></i>{% endfor %}
+                                            {% for i in range(5 - review.rating) %}<i class="bi bi-star"></i>{% endfor %}
+                                        </div>
+                                    </div>
+                                </div>
+                                <small class="text-secondary">{{ review.created_at.strftime("%Y-%m-%d %H:%M") if review.created_at else "" }}</small>
+                            </div>
+                            <p class="mb-0 text-secondary">{{ review.content }}</p>
+                            {% if review.follow_up_content %}
+                            <div class="mt-3 p-3 bg-light rounded-3">
+                                <div class="small text-secondary mb-1">Follow-up · {{ review.follow_up_created_at.strftime("%Y-%m-%d %H:%M") if review.follow_up_created_at else "" }}</div>
+                                <div class="text-secondary">{{ review.follow_up_content }}</div>
+                            </div>
+                            {% endif %}
+                            {% if current_user.is_authenticated and current_user.id == review.user_id %}
+                            <div class="text-end mt-2">
+                                {% if not review.follow_up_content %}
+                                <button class="btn btn-link text-primary p-0 text-decoration-none me-3 follow-up-btn" data-review-id="{{ review.id }}">Add Follow-up</button>
+                                {% endif %}
+                                <button class="btn btn-link text-danger p-0 text-decoration-none delete-review-btn" data-review-id="{{ review.id }}">Delete</button>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="text-center py-5 bg-light rounded-3">
+                        <p class="text-secondary mb-0">No reviews yet. Be the first on NovaMart.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Recommendations -->
+    {% if recommendations %}
+    <div class="row">
+        <div class="col-12">
+            <h3 class="fw-bold mb-4">You May Also Like</h3>
+            <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-6 g-4">
+                {% for rec in recommendations %}
+                <div class="col">
+                    <div class="card h-100 border-0 shadow-sm hover-lift product-card">
+                        <a href="{{ url_for('products.product_detail', product_id=rec.id) }}" aria-label="View details for {{ rec.title }}">
+                            <img src="{{ url_for('static', filename=rec.image_path) if rec.image_path else url_for('static', filename='images/placeholder.png') }}" class="card-img-top p-2" alt="{{ rec.title }}" style="height: 150px;">
+                        </a>
+                        <div class="card-body p-3">
+                            <a href="{{ url_for('products.product_detail', product_id=rec.id) }}" class="text-decoration-none">
+                                <h6 class="card-title text-dark fw-bold mb-1 text-truncate">{{ rec.title }}</h6>
+                            </a>
+                            <div class="mb-2">
+                                {% set rating = rating_summary.get(rec.id) if rating_summary else None %}
+                                {% include "components/rating_badge.html" %}
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center mt-2">
+                                <span class="text-primary fw-bold">${{ "%.2f"|format(rec.price) }}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Review Modal -->
+<div class="modal fade" id="reviewModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header border-bottom-0">
+                <h5 class="modal-title fw-bold">Write a Review</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <form id="review-form">
+                    <div class="mb-3 text-center">
+                        <label class="form-label d-block text-secondary fw-semibold">Rating</label>
+                        <div class="rating-select fs-3 text-warning cursor-pointer">
+                            <i class="bi bi-star" data-value="1"></i>
+                            <i class="bi bi-star" data-value="2"></i>
+                            <i class="bi bi-star" data-value="3"></i>
+                            <i class="bi bi-star" data-value="4"></i>
+                            <i class="bi bi-star" data-value="5"></i>
+                        </div>
+                        <input type="hidden" name="rating" id="review-rating" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="review-content" class="form-label text-secondary fw-semibold">Review</label>
+                        <textarea class="form-control" id="review-content" rows="4" placeholder="Share your thoughts..." required></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100 shadow-sm">Submit Review</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Follow-up Modal -->
+<div class="modal fade" id="followUpModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header border-bottom-0">
+                <h5 class="modal-title fw-bold">Add Follow-up</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <form id="follow-up-form">
+                    <div class="mb-3">
+                        <label for="follow-up-content" class="form-label text-secondary fw-semibold">Follow-up</label>
+                        <textarea class="form-control" id="follow-up-content" rows="4" placeholder="Add your update..." required></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100 shadow-sm">Submit Follow-up</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script type="module">
+    import { api } from "{{ url_for('static', filename='js/api.js') }}";
+    import { showToast, updateCartBadge } from "{{ url_for('static', filename='js/utils.js') }}";
+    import { animateButton, animateHeart } from "{{ url_for('static', filename='js/interactions.js') }}";
+    import { initWishlistButtons } from "{{ url_for('static', filename='js/wishlist.js') }}";
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const productId = {{ product.id }};
+        // Store last viewed product for chat quick-link
+        try {
+            const lastProduct = {
+                id: productId,
+                title: {{ product.title|tojson }},
+                url: "{{ url_for('products.product_detail', product_id=product.id) }}"
+            };
+            localStorage.setItem('shopwave_last_product', JSON.stringify(lastProduct));
+        } catch (e) {
+            // ignore storage errors
+        }
+
+        // Add to Cart
+        const addToCartBtn = document.getElementById('add-to-cart-btn');
+        if (addToCartBtn) {
+            addToCartBtn.addEventListener('click', async () => {
+                const quantity = parseInt(document.getElementById('quantity').value);
+                try {
+                    const result = await api.post('/api/cart/items', {
+                        product_id: productId,
+                        quantity: quantity
+                    }, { showLoading: false });
+                    
+                    await animateButton(addToCartBtn, 'success', '<i class="bi bi-check2"></i> Added to Cart');
+                    
+                    const cartData = await api.get("{{ url_for('cart.get_cart') }}", { showLoading: false });
+                    updateCartBadge(cartData.total_items);
+                } catch (error) {
+                    showToast(error.message, 'error');
+                }
+            });
+        }
+
+        // Wishlist state sync + silent toggle (no toast)
+        const wishlistBtn = document.getElementById('wishlist-btn');
+        if (wishlistBtn) initWishlistButtons([wishlistBtn], api, { animateHeart });
+
+        // Star Rating Selection
+        const stars = document.querySelectorAll('.rating-select i');
+        const ratingInput = document.getElementById('review-rating');
+        
+        stars.forEach(star => {
+            star.addEventListener('click', () => {
+                const value = parseInt(star.dataset.value);
+                ratingInput.value = value;
+                stars.forEach((s, index) => {
+                    if (index < value) {
+                        s.classList.replace('bi-star', 'bi-star-fill');
+                    } else {
+                        s.classList.replace('bi-star-fill', 'bi-star');
+                    }
+                });
+            });
+        });
+
+        // Submit Review
+        const reviewForm = document.getElementById('review-form');
+        if (reviewForm) {
+            reviewForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const rating = ratingInput.value;
+                const content = document.getElementById('review-content').value;
+                
+                if (!rating) {
+                    showToast('Please select a rating', 'error');
+                    return;
+                }
+
+                try {
+                    await api.post(`/api/products/${productId}/reviews`, {
+                        rating: parseInt(rating),
+                        content: content
+                    }, { showLoading: true });
+                    
+                    showToast('Review submitted successfully', 'success');
+                    setTimeout(() => location.reload(), 1000);
+                } catch (error) {
+                    showToast(error.message, 'error');
+                }
+            });
+        }
+
+        // Delete Review
+        document.querySelectorAll('.delete-review-btn').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                if (!confirm('Are you sure you want to delete this review?')) return;
+                
+                const reviewId = btn.dataset.reviewId;
+                try {
+                    await api.delete(`/api/reviews/${reviewId}`, { showLoading: true });
+                    showToast('Review deleted', 'success');
+                    btn.closest('.card').remove();
+                } catch (error) {
+                    showToast(error.message, 'error');
+                }
+            });
+        });
+
+        // Add Follow-up
+        const followUpModalEl = document.getElementById('followUpModal');
+        const followUpForm = document.getElementById('follow-up-form');
+        const followUpContent = document.getElementById('follow-up-content');
+        let activeReviewId = null;
+
+        if (followUpModalEl && followUpForm && followUpContent && window.bootstrap && bootstrap.Modal) {
+            const followUpModal = new bootstrap.Modal(followUpModalEl);
+            document.querySelectorAll('.follow-up-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    activeReviewId = btn.dataset.reviewId;
+                    followUpContent.value = '';
+                    followUpModal.show();
+                });
+            });
+
+            followUpForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const content = followUpContent.value.trim();
+                if (!content) {
+                    showToast('Please enter follow-up content', 'error');
+                    return;
+                }
+                try {
+                    await api.post(`/api/reviews/${activeReviewId}/follow-up`, { content }, { showLoading: true });
+                    showToast('Follow-up added', 'success');
+                    setTimeout(() => location.reload(), 500);
+                } catch (error) {
+                    showToast(error.message, 'error');
+                }
+            });
+        }
+    });
+</script>
+{% endblock %}
+

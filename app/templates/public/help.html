@@ -1,0 +1,195 @@
+{% extends "base.html" %}
+
+{% block title %}Help Center{% endblock %}
+
+{% block content %}
+<section class="help-hero hero-section py-5 mb-5">
+    <div class="hero-ornaments" aria-hidden="true">
+        <span class="hero-orb orb-1"></span>
+        <span class="hero-orb orb-2"></span>
+        <span class="hero-orb orb-3"></span>
+        <span class="hero-grid"></span>
+    </div>
+    <div class="container position-relative">
+        <div class="row justify-content-center text-center">
+            <div class="col-lg-8">
+                <span class="help-eyebrow">NovaMart Help Center</span>
+                <h1 class="display-5 fw-bold text-primary-dark mb-3">Fast answers. Clear policies. Human support.</h1>
+                <p class="lead text-secondary mb-4">
+                    Find shipping timelines, return steps, and account guidance. If you still need help,
+                    our team can step in quickly.
+                </p>
+                <div class="d-flex flex-wrap gap-3 justify-content-center">
+                    <a href="#returns" class="btn btn-primary btn-lg rounded-pill px-4">Return & Refund</a>
+                    <a href="#contact" class="btn btn-outline-primary btn-lg rounded-pill px-4">Contact support</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="container mb-5" id="quick-actions">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-1">Quick actions</h2>
+            <p class="text-secondary mb-0">Jump to the most common tasks in seconds.</p>
+        </div>
+    </div>
+    <div class="row g-4">
+        <div class="col-md-4">
+            <div class="help-card hover-lift h-100">
+                <div class="help-card-icon float-soft">
+                    <i class="bi bi-box-seam"></i>
+                </div>
+                <h5>Track my orders</h5>
+                <p class="text-secondary">See live order status, shipping steps, and expected delivery.</p>
+                <a class="btn btn-outline-primary btn-sm rounded-pill" href="{{ url_for('orders.order_list') }}">Open orders</a>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="help-card hover-lift h-100">
+                <div class="help-card-icon float-soft">
+                    <i class="bi bi-arrow-counterclockwise"></i>
+                </div>
+                <h5>Return or refund</h5>
+                <p class="text-secondary">Start an after-sales request with guided steps and clear outcomes.</p>
+                <a class="btn btn-outline-primary btn-sm rounded-pill" href="#returns">View steps</a>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="help-card hover-lift h-100">
+                <div class="help-card-icon float-soft">
+                    <i class="bi bi-shield-check"></i>
+                </div>
+                <h5>Account & security</h5>
+                <p class="text-secondary">Manage profile details, saved addresses, and password security.</p>
+                <a class="btn btn-outline-primary btn-sm rounded-pill" href="{{ url_for('auth.settings') }}">Open settings</a>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="container mb-5" id="returns">
+    <div class="row g-4 align-items-center">
+        <div class="col-lg-6">
+            <div class="help-panel">
+                <h2 class="mb-3">Return & refund flow</h2>
+                <p class="text-secondary mb-4">
+                    Returns are customer-shipped after approval. Refund-only cases are processed directly by the merchant.
+                    Every step is visible inside your order detail page.
+                </p>
+                <div class="help-steps">
+                    <div class="help-step">
+                        <div class="help-step-number">1</div>
+                        <div>
+                            <div class="fw-semibold">Request after-sales</div>
+                            <div class="text-secondary small">Choose return or refund from your order detail.</div>
+                        </div>
+                    </div>
+                    <div class="help-step">
+                        <div class="help-step-number">2</div>
+                        <div>
+                            <div class="fw-semibold">Merchant review</div>
+                            <div class="text-secondary small">Approval unlocks return shipping details.</div>
+                        </div>
+                    </div>
+                    <div class="help-step">
+                        <div class="help-step-number">3</div>
+                        <div>
+                            <div class="fw-semibold">Ship return or receive refund</div>
+                            <div class="text-secondary small">Return shipments are confirmed by merchants.</div>
+                        </div>
+                    </div>
+                    <div class="help-step">
+                        <div class="help-step-number">4</div>
+                        <div>
+                            <div class="fw-semibold">After-sales closed</div>
+                            <div class="text-secondary small">Order status updates when the case ends.</div>
+                        </div>
+                    </div>
+                </div>
+                <a href="{{ url_for('orders.order_list') }}" class="btn btn-primary rounded-pill mt-3">Manage my orders</a>
+            </div>
+        </div>
+        <div class="col-lg-6">
+            <div class="help-glass-card">
+                <h5 class="mb-3">Policy highlights</h5>
+                <ul class="list-unstyled mb-0 help-list">
+                    <li><i class="bi bi-check-circle-fill"></i>30-day return window on most items.</li>
+                    <li><i class="bi bi-check-circle-fill"></i>Refund-only requests handled by merchants directly.</li>
+                    <li><i class="bi bi-check-circle-fill"></i>Return shipping tracking supported in your order page.</li>
+                    <li><i class="bi bi-check-circle-fill"></i>Points are granted on net paid amounts after refunds.</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="container mb-5" id="faq">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-1">FAQ</h2>
+            <p class="text-secondary mb-0">Quick answers to top questions.</p>
+        </div>
+    </div>
+    <div class="accordion" id="helpAccordion">
+        <div class="accordion-item">
+            <h2 class="accordion-header" id="faqOne">
+                <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#faqOneBody">
+                    How do I combine items from different merchants?
+                </button>
+            </h2>
+            <div id="faqOneBody" class="accordion-collapse collapse show" data-bs-parent="#helpAccordion">
+                <div class="accordion-body text-secondary">
+                    Add items to your cart from multiple stores. NovaMart will split orders by merchant but
+                    still allow a single checkout and payment flow.
+                </div>
+            </div>
+        </div>
+        <div class="accordion-item">
+            <h2 class="accordion-header" id="faqTwo">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faqTwoBody">
+                    Why does my order show After-sales?
+                </button>
+            </h2>
+            <div id="faqTwoBody" class="accordion-collapse collapse" data-bs-parent="#helpAccordion">
+                <div class="accordion-body text-secondary">
+                    When a return/refund is requested, the order status switches to After-sales until the
+                    request is resolved and closed.
+                </div>
+            </div>
+        </div>
+        <div class="accordion-item">
+            <h2 class="accordion-header" id="faqThree">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faqThreeBody">
+                    How are loyalty points calculated?
+                </button>
+            </h2>
+            <div id="faqThreeBody" class="accordion-collapse collapse" data-bs-parent="#helpAccordion">
+                <div class="accordion-body text-secondary">
+                    Points are earned only on the final paid amount. If a refund is issued,
+                    the related points are adjusted automatically.
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="container mb-5" id="contact">
+    <div class="help-contact">
+        <div class="help-contact-body">
+            <h2 class="mb-2">Still need help?</h2>
+            <p class="text-secondary mb-0">Open a chat with support or a merchant. We respond within one business day.</p>
+        </div>
+        <div class="help-contact-actions">
+            {% if current_user.is_authenticated %}
+                <a class="btn btn-primary rounded-pill px-4" href="{{ url_for('chat.customer_chat_page') }}">Chat with support</a>
+            {% else %}
+                <a class="btn btn-primary rounded-pill px-4" href="{{ url_for('auth.login') }}">Sign in to chat</a>
+            {% endif %}
+            <a class="btn btn-outline-primary rounded-pill px-4" href="{{ url_for('public.terms') }}">Terms</a>
+            <a class="btn btn-outline-primary rounded-pill px-4" href="{{ url_for('public.privacy') }}">Privacy</a>
+        </div>
+    </div>
+</section>
+{% endblock %}

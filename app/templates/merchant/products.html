@@ -1,0 +1,285 @@
+{% extends "base.html" %}
+
+{% block title %}My Products{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="fw-bold mb-0">{{ 'All Products' if current_user.role.value == 'ADMIN' else 'My Products' }}</h2>
+        {% if current_user.role.value == 'MERCHANT' %}
+        <button class="btn btn-primary shadow-sm" data-bs-toggle="modal" data-bs-target="#productModal">
+            <i class="bi bi-plus-lg me-2"></i> Add Product
+        </button>
+        {% endif %}
+    </div>
+
+    <div class="card border-0 shadow-sm">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0 table-responsive-stack">
+                    <thead class="bg-light">
+                        <tr>
+                            <th class="ps-4">Product</th>
+                            {% if current_user.role.value == 'ADMIN' %}
+                            <th>Merchant</th>
+                            {% endif %}
+                            <th>Price</th>
+                            <th>Stock</th>
+                            <th>Status</th>
+                            <th class="pe-4 text-end">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="products-table-body">
+                        <!-- Loaded via JS -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Product Modal -->
+<div class="modal fade" id="productModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header border-bottom-0">
+                <h5 class="modal-title fw-bold" id="modalTitle">Add Product</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <form id="product-form">
+                    <input type="hidden" id="product-id">
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <label for="title" class="form-label">Title</label>
+                            <input type="text" class="form-control" id="title" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="price" class="form-label">Price</label>
+                            <div class="input-group">
+                                <span class="input-group-text">$</span>
+                                <input type="number" class="form-control" id="price" step="0.01" min="0" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="stock" class="form-label">Stock</label>
+                            <input type="number" class="form-control" id="stock" min="0" required>
+                        </div>
+                        <div class="col-12">
+                            <label for="description" class="form-label">Description</label>
+                            <textarea class="form-control" id="description" rows="3"></textarea>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Categories</label>
+                            <div class="row row-cols-2 row-cols-md-3 g-2" id="category-checks">
+                                <!-- Loaded via JS -->
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label" for="image-file">Main Image</label>
+                            <div class="d-flex align-items-center gap-3">
+                        <img id="product-image-preview" src="{{ url_for('static', filename='images/placeholder.png') }}" class="rounded border" style="width: 64px; height: 64px; object-fit: contain;" alt="Product preview">
+                                <div class="flex-grow-1">
+                                    <input class="form-control" type="file" id="image-file" accept="image/png,image/jpeg,image/webp" aria-label="Product image">
+                                    <div class="form-text text-secondary">Upload one main image (jpg/png/webp).</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="d-grid mt-4">
+                        <button type="submit" class="btn btn-primary btn-lg shadow-sm">Save Product</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script type="module">
+    import { api } from "{{ url_for('static', filename='js/api.js') }}";
+    import { formatCurrency, showToast } from "{{ url_for('static', filename='js/utils.js') }}";
+
+    let productModal;
+    const isAdmin = document.body.dataset.role === 'ADMIN';
+
+    document.addEventListener('DOMContentLoaded', async () => {
+        productModal = new bootstrap.Modal(document.getElementById('productModal'));
+        await loadProducts();
+        await loadCategories();
+
+        document.getElementById('product-form').addEventListener('submit', handleSaveProduct);
+    });
+
+    async function loadProducts() {
+        try {
+            const data = await api.get('/merchant/products');
+            renderProducts(data.items);
+        } catch (error) {
+            showToast('Failed to load products', 'error');
+        }
+    }
+
+    function renderProducts(products) {
+        const tbody = document.getElementById('products-table-body');
+        if (!products.length) {
+            const cols = isAdmin ? 6 : 5;
+            tbody.innerHTML = `<tr><td colspan="${cols}" class="text-center py-5 text-secondary">No products found</td></tr>`;
+            return;
+        }
+
+        const placeholder = "{{ url_for('static', filename='images/placeholder.png') }}";
+        tbody.innerHTML = products.map(p => `
+            <tr>
+                <td class="ps-4" data-label="Product">
+                    <div class="d-flex align-items-center">
+                        <img src="${p.image_url || placeholder}" class="rounded me-3" style="width: 40px; height: 40px; object-fit: contain;" alt="${p.title || 'Product'}">
+                        <span class="fw-semibold">${p.title}</span>
+                    </div>
+                </td>
+                ${isAdmin ? `<td data-label="Merchant" class="text-secondary">${p.merchant_email || p.merchant_id || '-'}</td>` : ''}
+                <td data-label="Price">${formatCurrency(p.price)}</td>
+                <td data-label="Stock">${p.stock}</td>
+                <td data-label="Status"><span class="badge ${statusBadge(p.status)}">${p.status}</span></td>
+                <td class="pe-4 text-end" data-label="Actions">
+                    <button class="btn btn-sm btn-outline-secondary me-1" onclick="editProduct(${p.id})" aria-label="Edit product"><i class="bi bi-pencil"></i></button>
+                    ${isAdmin ? `
+                        <button class="btn btn-sm ${p.status === 'SUSPENDED' ? 'btn-outline-success' : 'btn-outline-warning'} me-1" onclick="toggleProductStatus(${p.id}, '${p.status}')">
+                            ${p.status === 'SUSPENDED' ? 'Activate' : 'Suspend'}
+                        </button>
+                    ` : ''}
+                    <button class="btn btn-sm btn-outline-danger" onclick="deleteProduct(${p.id})" aria-label="Delete product"><i class="bi bi-trash"></i></button>
+                </td>
+            </tr>
+        `).join('');
+        
+        // Expose functions to window for onclick
+        window.deleteProduct = deleteProduct;
+        window.editProduct = editProduct;
+        window.toggleProductStatus = toggleProductStatus;
+    }
+
+    function statusBadge(status) {
+        const map = {
+            'ACTIVE': 'bg-success text-white',
+            'DRAFT': 'bg-secondary text-white',
+            'SUSPENDED': 'bg-danger text-white'
+        };
+        return map[status] || 'bg-secondary-subtle text-secondary border border-secondary-subtle';
+    }
+
+    async function loadCategories() {
+        try {
+            const data = await api.get('/api/merchant/categories', { showLoading: false });
+            const container = document.getElementById('category-checks');
+            container.innerHTML = (data.items || []).map(c => `
+                <div class="col">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" value="${c.id}" id="cat-${c.id}">
+                        <label class="form-check-label" for="cat-${c.id}">${c.name}</label>
+                    </div>
+                </div>
+            `).join('');
+        } catch (error) {
+            showToast('Failed to load categories', 'error');
+        }
+    }
+
+    async function handleSaveProduct(e) {
+        e.preventDefault();
+        const id = document.getElementById('product-id').value;
+        const data = {
+            title: document.getElementById('title').value,
+            price: parseFloat(document.getElementById('price').value),
+            stock: parseInt(document.getElementById('stock').value),
+            description: document.getElementById('description').value,
+            category_ids: Array.from(document.querySelectorAll('#category-checks input[type="checkbox"]:checked')).map(el => parseInt(el.value))
+        };
+        const file = document.getElementById('image-file')?.files?.[0] || null;
+
+        try {
+            let saved;
+            if (id) {
+                saved = await api.put(`/merchant/products/${id}`, data, { showLoading: true });
+            } else {
+                saved = await api.post('/merchant/products', data, { showLoading: true });
+            }
+
+            const productId = id ? parseInt(id) : saved?.product?.id;
+            if (productId && file) {
+                const fd = new FormData();
+                fd.append('image', file);
+                await api.post(`/merchant/products/${productId}/image`, fd, { showLoading: true });
+            }
+            productModal.hide();
+            showToast('Product saved', 'success');
+            loadProducts();
+            document.getElementById('product-form').reset();
+            document.getElementById('product-id').value = '';
+            document.getElementById('product-image-preview').src = "{{ url_for('static', filename='images/placeholder.png') }}";
+        } catch (error) {
+            showToast(error.message, 'error');
+        }
+    }
+
+    async function deleteProduct(id) {
+        if (!confirm('Delete this product?')) return;
+        try {
+            await api.delete(`/merchant/products/${id}`, { showLoading: true });
+            showToast('Product deleted', 'success');
+            loadProducts();
+        } catch (error) {
+            showToast(error.message, 'error');
+        }
+    }
+
+    async function toggleProductStatus(id, currentStatus) {
+        const next = currentStatus === 'SUSPENDED' ? 'ACTIVE' : 'SUSPENDED';
+        if (!confirm(`Set product #${id} to ${next}?`)) return;
+        try {
+            await api.patch(`/merchant/products/${id}`, { status: next }, { showLoading: true });
+            showToast('Product updated', 'success');
+            loadProducts();
+        } catch (error) {
+            showToast(error.message || 'Failed to update product', 'error');
+        }
+    }
+
+    async function editProduct(id) {
+        try {
+            const res = await api.get(`/merchant/products/${id}`, { showLoading: true });
+            const p = res.product;
+            document.getElementById('modalTitle').textContent = 'Edit Product';
+            document.getElementById('product-id').value = p.id;
+            document.getElementById('title').value = p.title || '';
+            document.getElementById('price').value = p.price ?? 0;
+            document.getElementById('stock').value = p.stock ?? 0;
+            document.getElementById('description').value = p.description || '';
+
+            // categories
+            document.querySelectorAll('#category-checks input[type="checkbox"]').forEach(el => {
+                const cid = parseInt(el.value);
+                el.checked = Array.isArray(p.category_ids) && p.category_ids.includes(cid);
+            });
+
+            // preview image
+            document.getElementById('image-file').value = '';
+            document.getElementById('product-image-preview').src = p.image_url || "{{ url_for('static', filename='images/placeholder.png') }}";
+
+            productModal.show();
+        } catch (e) {
+            showToast(e.message || 'Failed to load product', 'error');
+        }
+    }
+
+    // Preview file selection
+    document.getElementById('image-file')?.addEventListener('change', () => {
+        const f = document.getElementById('image-file')?.files?.[0];
+        if (!f) return;
+        const url = URL.createObjectURL(f);
+        document.getElementById('product-image-preview').src = url;
+    });
+</script>
+{% endblock %}
+

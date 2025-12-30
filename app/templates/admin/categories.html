@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+
+{% block title %}Manage Categories{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold mb-1">Categories</h2>
+            <p class="text-secondary mb-0">Maintain the storefront taxonomy.</p>
+        </div>
+        <button class="btn btn-primary" onclick="addCategory()">
+            <i class="bi bi-plus-lg me-2"></i> Add Category
+        </button>
+    </div>
+
+    <div class="card border-0 shadow-sm">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="bg-light">
+                        <tr>
+                            <th class="ps-4">Name</th>
+                            <th>Slug</th>
+                            <th>Status</th>
+                            <th class="pe-4 text-end">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="categories-body"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script type="module">
+    import { api } from "{{ url_for('static', filename='js/api.js') }}";
+    import { showToast } from "{{ url_for('static', filename='js/utils.js') }}";
+
+    document.addEventListener('DOMContentLoaded', () => {
+        loadCategories();
+        bindCategoryActions();
+    });
+
+    async function loadCategories() {
+        try {
+            const data = await api.get('/admin/categories');
+            renderCategories(data.items);
+        } catch (error) {
+            showToast('Failed to load categories', 'error');
+        }
+    }
+
+    function renderCategories(items) {
+        document.getElementById('categories-body').innerHTML = items.map(c => `
+            <tr>
+                <td class="ps-4 fw-bold">${c.name}</td>
+                <td class="font-monospace text-secondary">${c.slug}</td>
+                <td>
+                    <span class="badge ${c.is_active ? 'bg-success-subtle text-success border border-success-subtle' : 'bg-secondary'}">
+                        ${c.is_active ? 'Active' : 'Inactive'}
+                    </span>
+                </td>
+                <td class="pe-4 text-end">
+                    <button class="btn btn-sm btn-outline-primary" data-action="edit" data-id="${c.id}" data-name="${escapeAttr(c.name)}" data-slug="${escapeAttr(c.slug)}">Edit</button>
+                    <button class="btn btn-sm ${c.is_active ? 'btn-outline-warning' : 'btn-outline-success'} ms-2" data-action="toggle" data-id="${c.id}" data-active="${c.is_active}">
+                        ${c.is_active ? 'Disable' : 'Enable'}
+                    </button>
+                    <button class="btn btn-sm btn-outline-danger ms-2" data-action="delete" data-id="${c.id}" data-name="${escapeAttr(c.name)}">Delete</button>
+                </td>
+            </tr>
+        `).join('');
+    }
+
+    window.addCategory = async () => {
+        const name = prompt('Category Name:');
+        if (!name) return;
+        const slug = name.toLowerCase().replace(/ /g, '-');
+        
+        try {
+            await api.post('/admin/categories', { name, slug });
+            showToast('Category created', 'success');
+            loadCategories();
+        } catch (error) {
+            showToast(error.message, 'error');
+        }
+    };
+
+    function bindCategoryActions() {
+        const tbody = document.getElementById('categories-body');
+        if (!tbody) return;
+        tbody.addEventListener('click', (event) => {
+            const btn = event.target.closest('button[data-action]');
+            if (!btn) return;
+            const action = btn.dataset.action;
+            if (action === 'edit') {
+                handleEdit(btn.dataset.id, btn.dataset.name, btn.dataset.slug);
+            } else if (action === 'toggle') {
+                handleToggle(btn.dataset.id, btn.dataset.active === 'true');
+            } else if (action === 'delete') {
+                handleDelete(btn.dataset.id, btn.dataset.name);
+            }
+        });
+    }
+
+    async function handleEdit(id, name, slug) {
+        const nextName = prompt('Category Name:', name);
+        if (!nextName) return;
+        const nextSlug = prompt('Category Slug:', slug);
+        if (!nextSlug) return;
+        try {
+            await api.patch(`/admin/categories/${id}`, { name: nextName, slug: nextSlug }, { showLoading: true });
+            showToast('Category updated', 'success');
+            loadCategories();
+        } catch (error) {
+            showToast(error.message, 'error');
+        }
+    }
+
+    async function handleToggle(id, isActive) {
+        const nextState = !isActive;
+        if (!confirm(`${nextState ? 'Enable' : 'Disable'} this category?`)) return;
+        try {
+            await api.patch(`/admin/categories/${id}`, { is_active: nextState }, { showLoading: true });
+            showToast('Category updated', 'success');
+            loadCategories();
+        } catch (error) {
+            showToast(error.message, 'error');
+        }
+    }
+
+    async function handleDelete(id, name) {
+        if (!confirm(`Delete category "${name}"? This cannot be undone.`)) return;
+        try {
+            await api.delete(`/admin/categories/${id}`, { showLoading: true });
+            showToast('Category deleted', 'success');
+            loadCategories();
+        } catch (error) {
+            showToast(error.message, 'error');
+        }
+    }
+
+    function escapeAttr(value) {
+        return String(value)
+            .replace(/&/g, '&amp;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
+    }
+</script>
+{% endblock %}
+

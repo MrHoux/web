@@ -1,0 +1,178 @@
+{% extends "base.html" %}
+
+{% block title %}Addresses{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+  <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
+    <div>
+      <h2 class="fw-bold mb-1">My Addresses</h2>
+      <p class="text-secondary mb-0">Add a delivery address to speed up your first checkout.</p>
+    </div>
+    <div class="d-flex gap-2">
+      <a class="btn btn-outline-primary" href="{{ url_for('account.overview') }}"><i class="bi bi-arrow-left me-2"></i>Back</a>
+      <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addressModal"><i class="bi bi-plus-lg me-2"></i>Add</button>
+    </div>
+  </div>
+
+  <div class="card border-0 shadow-sm">
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table align-middle mb-0">
+          <thead class="bg-light">
+            <tr>
+              <th class="ps-4">Recipient</th>
+              <th>Phone</th>
+              <th>Address</th>
+              <th class="pe-4 text-end">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="addresses-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Address Modal -->
+<div class="modal fade" id="addressModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg">
+      <div class="modal-header border-bottom-0">
+        <h5 class="modal-title fw-bold" id="addrModalTitle">Add Address</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body p-4">
+        <form id="address-form">
+          <input type="hidden" id="addr-id">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label" for="recipient_name">Recipient</label>
+              <input class="form-control" id="recipient_name" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label" for="phone">Phone</label>
+              <input class="form-control" id="phone" required>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label" for="province">Province</label>
+              <input class="form-control" id="province" required>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label" for="city">City</label>
+              <input class="form-control" id="city" required>
+            </div>
+            <div class="col-md-4">
+              <div class="d-flex justify-content-between align-items-center">
+                <label class="form-label mb-0" for="district">District</label>
+                <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="modal" data-bs-target="#locationModal" data-return-modal="#addressModal" aria-label="Pick on map or use my location">
+                  <i class="bi bi-map me-1"></i><span class="d-none d-md-inline">Choose</span>
+                </button>
+              </div>
+              <input class="form-control" id="district" required>
+            </div>
+            <div class="col-12">
+              <label class="form-label" for="detail_address">Detail address</label>
+              <input class="form-control" id="detail_address" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label" for="postal_code">Postal code (optional)</label>
+              <input class="form-control" id="postal_code">
+            </div>
+          </div>
+          <div class="d-grid mt-4">
+            <button class="btn btn-primary btn-lg" type="submit">Save</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script type="module">
+  import { api } from "{{ url_for('static', filename='js/api.js') }}";
+  import { showToast } from "{{ url_for('static', filename='js/utils.js') }}";
+
+  let modal;
+  document.addEventListener('DOMContentLoaded', () => {
+    modal = new bootstrap.Modal(document.getElementById('addressModal'));
+    loadAddresses();
+    document.getElementById('address-form').addEventListener('submit', saveAddress);
+  });
+
+  async function loadAddresses() {
+    try {
+      const data = await api.get('/api/account/addresses');
+      render(data.items || []);
+    } catch (e) {
+      showToast('Failed to load addresses', 'error');
+    }
+  }
+
+  function render(items) {
+    const tbody = document.getElementById('addresses-body');
+    if (!items.length) {
+      tbody.innerHTML = '<tr><td colspan="4" class="text-center py-5 text-secondary">No addresses</td></tr>';
+      return;
+    }
+    tbody.innerHTML = items.map(a => `
+      <tr>
+        <td class="ps-4 fw-semibold">${a.recipient_name}</td>
+        <td class="text-secondary">${a.phone}</td>
+        <td class="text-secondary">${a.province}${a.city}${a.district}${a.detail_address}</td>
+        <td class="pe-4 text-end">
+          <button class="btn btn-sm btn-outline-primary" onclick="editAddr(${a.id})">Edit</button>
+          <button class="btn btn-sm btn-outline-danger ms-2" onclick="delAddr(${a.id})">Delete</button>
+        </td>
+      </tr>
+    `).join('');
+    window.editAddr = (id) => openEdit(id, items);
+    window.delAddr = delAddr;
+  }
+
+  function openEdit(id, items) {
+    const a = items.find(x => x.id === id);
+    if (!a) return;
+    document.getElementById('addrModalTitle').textContent = 'Edit Address';
+    document.getElementById('addr-id').value = a.id;
+    for (const k of ['recipient_name','phone','province','city','district','detail_address','postal_code']) {
+      document.getElementById(k).value = a[k] || '';
+    }
+    modal.show();
+  }
+
+  async function saveAddress(e) {
+    e.preventDefault();
+    const id = document.getElementById('addr-id').value;
+    const payload = {};
+    for (const k of ['recipient_name','phone','province','city','district','detail_address','postal_code']) {
+      payload[k] = document.getElementById(k).value;
+    }
+    try {
+      if (id) await api.patch(`/api/account/addresses/${id}`, payload, { showLoading: true });
+      else await api.post('/api/account/addresses', payload, { showLoading: true });
+      modal.hide();
+      document.getElementById('address-form').reset();
+      document.getElementById('addr-id').value = '';
+      document.getElementById('addrModalTitle').textContent = 'Add Address';
+      showToast('Saved', 'success');
+      loadAddresses();
+    } catch (e2) {
+      showToast(e2.message || 'Failed to save', 'error');
+    }
+  }
+
+  async function delAddr(id) {
+    if (!confirm('Delete this address?')) return;
+    try {
+      await api.delete(`/api/account/addresses/${id}`, { showLoading: true });
+      showToast('Deleted', 'info');
+      loadAddresses();
+    } catch (e) {
+      showToast(e.message || 'Failed to delete', 'error');
+    }
+  }
+</script>
+{% endblock %}

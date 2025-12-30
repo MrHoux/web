@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+
+{% block title %}Login{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6 col-lg-5">
+            <div class="card border-0 shadow-lg">
+                <div class="card-body p-5">
+                    <div class="text-center mb-4">
+                        <h2 class="fw-bold text-primary-dark">Sign in to NovaMart</h2>
+                        <p class="text-secondary">Pick up where you left off.</p>
+                    </div>
+
+                    <form method="POST" action="{{ url_for('auth.login') }}" class="needs-validation" novalidate>
+                        <!-- Email -->
+                        <div class="mb-3">
+                            <label for="email" class="form-label text-secondary fw-semibold">Email Address</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light border-end-0"><i class="bi bi-envelope text-primary"></i></span>
+                                <input type="email" class="form-control border-start-0 ps-0" id="email" name="email" required placeholder="name@example.com">
+                                <div class="invalid-feedback">
+                                    Please provide a valid email.
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Password -->
+                        <div class="mb-4">
+                            <label for="password" class="form-label text-secondary fw-semibold">Password</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light border-end-0"><i class="bi bi-lock text-primary"></i></span>
+                                <input type="password" class="form-control border-start-0 ps-0" id="password" name="password" required placeholder="Enter your password">
+                                <div class="invalid-feedback">
+                                    Please enter your password.
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Submit -->
+                        <div class="d-grid mb-4">
+                            <button type="submit" class="btn btn-primary btn-lg shadow-sm">Sign In</button>
+                        </div>
+
+                        <!-- Links -->
+                        <div class="text-center">
+                            <p class="text-secondary mb-0">New to NovaMart? <a href="{{ url_for('auth.register') }}" class="fw-semibold">Create account</a></p>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Form validation script
+    (function () {
+        'use strict'
+        var forms = document.querySelectorAll('.needs-validation')
+        Array.prototype.slice.call(forms)
+            .forEach(function (form) {
+                form.addEventListener('submit', function (event) {
+                    if (!form.checkValidity()) {
+                        event.preventDefault()
+                        event.stopPropagation()
+                    }
+                    form.classList.add('was-validated')
+                }, false)
+            })
+    })()
+</script>
+{% endblock %}

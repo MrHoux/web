@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+
+{% block title %}Terms of Service{% endblock %}
+
+{% block content %}
+<section class="policy-hero">
+    <div class="container">
+        <div class="policy-header">
+            <div>
+                <span class="help-eyebrow">NovaMart Policies</span>
+                <h1 class="display-6 fw-bold text-primary-dark mb-2">Terms of Service</h1>
+                <p class="text-secondary mb-0">Clear, shopper-friendly rules for using NovaMart.</p>
+            </div>
+            <a class="btn btn-outline-primary rounded-pill" href="{{ url_for('public.help_center') }}">Back to Help</a>
+        </div>
+    </div>
+</section>
+
+<section class="container policy-body">
+    <div class="row g-4">
+        <div class="col-lg-4">
+            <div class="policy-card">
+                <h6 class="text-uppercase text-secondary small mb-3">Contents</h6>
+                <ul class="list-unstyled policy-toc">
+                    <li><a href="#account">Account & access</a></li>
+                    <li><a href="#orders">Orders & payments</a></li>
+                    <li><a href="#returns">Returns & after-sales</a></li>
+                    <li><a href="#conduct">User conduct</a></li>
+                    <li><a href="#changes">Policy changes</a></li>
+                </ul>
+            </div>
+        </div>
+        <div class="col-lg-8">
+            <div class="policy-card">
+                <h4 id="account" class="mb-3">Account & access</h4>
+                <p class="text-secondary">Create one account per person. Keep your login secure and update your profile details as needed. We may suspend accounts that violate policy or security requirements.</p>
+
+                <h4 id="orders" class="mb-3 mt-4">Orders & payments</h4>
+                <p class="text-secondary">Orders are split by merchant but paid in a single checkout flow. Payments are processed securely. Prices, taxes, and promotions are shown before checkout confirmation.</p>
+
+                <h4 id="returns" class="mb-3 mt-4">Returns & after-sales</h4>
+                <p class="text-secondary">After-sales requests move an order into a dedicated status. Returns are shipped by customers after approval. Refund-only requests are handled directly by merchants.</p>
+
+                <h4 id="conduct" class="mb-3 mt-4">User conduct</h4>
+                <p class="text-secondary">Respect merchants and support staff. Do not post illegal content, spam, or abusive language. Repeated violations may lead to account restrictions.</p>
+
+                <h4 id="changes" class="mb-3 mt-4">Policy changes</h4>
+                <p class="text-secondary">We may update these terms as the platform evolves. Significant changes will be communicated in-app.</p>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}

@@ -2,6 +2,7 @@ import { api } from './api.js';
 import { updateCartBadge, showToast } from './utils.js';
 import { initInteractions } from './interactions.js';
 import { initLocationUI } from './location.js';
+import { initHotkeys } from './hotkeys.js';
 
 // Build APP_CONFIG from server-rendered data-* attributes (avoids templating inside JS)
 if (!window.APP_CONFIG) {
@@ -32,6 +33,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Initialize animations and interactions
     initInteractions();
     initLocationUI();
+    initHotkeys();
 
     // Render server-side flash() messages as toasts (no layout shift)
     try {
